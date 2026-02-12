@@ -9,7 +9,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/funkymcb/fremorizer/render"
+	"github.com/funkymcb/fremorizer/instruments"
 )
 
 func main() {
@@ -25,6 +25,7 @@ type (
 
 type model struct {
 	textInput textinput.Model
+	guitar    *instruments.Guitar
 	err       error
 }
 
@@ -35,8 +36,12 @@ func initialModel() model {
 	ti.CharLimit = 5
 	ti.Width = 20
 
+	// TODO: ask the user for tuning and frets
+	g := instruments.NewGuitar([]string{"E", "A", "D", "G", "B", "E"}, 24)
+
 	return model{
 		textInput: ti,
+		guitar:    g,
 		err:       nil,
 	}
 }
@@ -67,7 +72,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	view := strings.Builder{}
-	view.WriteString(render.Fretboard())
+	view.WriteString(m.guitar.Render())
 	view.WriteString(m.textInput.View())
 	view.WriteString("\n(esc to quit)\n")
 

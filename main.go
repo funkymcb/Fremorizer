@@ -37,7 +37,7 @@ func initialModel() model {
 	ti.Width = 20
 
 	// TODO: ask the user for tuning and frets
-	g := instruments.NewGuitar([]string{"E", "A", "D", "G", "B", "E"}, 24)
+	g := instruments.NewGuitar([]string{"E", "A", "D", "G", "B", "E"}, 12)
 
 	return model{
 		textInput: ti,

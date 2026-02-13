@@ -51,6 +51,8 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// m.guitar.Strings[5].Notes[24].Hidden = false
+
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {

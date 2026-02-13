@@ -59,24 +59,21 @@ func NewGuitar(tuning []string, frets int) *Guitar {
 // createGuitarStrings creates a list of GuitarString objects based on the tuning and number of frets.
 func initGuitarStrings(tuning []string, frets int) []GuitarString {
 	strs := make([]GuitarString, len(tuning))
-	for stringIndex, openNote := range tuning {
+	for i, openNote := range tuning {
+		rev := len(tuning) - 1 - i // reverse the index to start from the lowest string (common tab convention)
+
 		notes := make([]Note, frets+1) // +1 for the open string
 		for fret := 0; fret <= frets; fret++ {
 			noteName, err := calculateNoteName(openNote, fret)
 			if err != nil {
-				panic(fmt.Sprintf("error calculating note name for string %d, fret %d: %v", stringIndex+1, fret, err))
+				panic(fmt.Sprintf("error calculating note name for string %d, fret %d: %v", rev+1, fret, err))
 			}
 			notes[fret] = Note{
 				Name:   noteName,
 				Hidden: true,
 			}
 		}
-		strs[stringIndex] = GuitarString{Notes: notes}
-	}
-
-	// reverse the strings so that the lowest E is at the bottom (common tab convention)
-	for i, j := 0, len(strs)-1; i < j; i, j = i+1, j-1 {
-		strs[i], strs[j] = strs[j], strs[i]
+		strs[rev] = GuitarString{Notes: notes}
 	}
 
 	return strs

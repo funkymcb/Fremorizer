@@ -36,28 +36,32 @@ var noteIndex = map[string]int{
 	"B":     11,
 }
 
-func NewGuitar(tuning []string, frets int) *Guitar {
+func NewGuitar(tuning []string, frets int) (*Guitar, error) {
 	// Guitar should have between 6 and 8 strings
-	if len(tuning) < 6 || len(tuning) > 8 {
-		panic("tuning must have between 6 and 8 strings")
+	numStrings := len(tuning)
+	if numStrings < 6 || numStrings > 8 {
+		return nil, fmt.Errorf("tuning must have between 6 and 8 strings, got %d", numStrings)
 	}
 
 	// Frets should be between 12 and 24
 	if frets < 12 || frets > 24 {
-		panic("frets must be between 12 and 24")
+		return nil, fmt.Errorf("frets must be between 12 and 24. input: %d", frets)
 	}
 
-	guitarStrings := initGuitarStrings(tuning, frets)
+	guitarStrings, err := initGuitarStrings(tuning, frets)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing guitar strings: %v", err)
+	}
 
 	return &Guitar{
 		Tuning:  tuning,
 		Frets:   frets,
 		Strings: guitarStrings,
-	}
+	}, nil
 }
 
 // createGuitarStrings creates a list of GuitarString objects based on the tuning and number of frets.
-func initGuitarStrings(tuning []string, frets int) []GuitarString {
+func initGuitarStrings(tuning []string, frets int) ([]GuitarString, error) {
 	strs := make([]GuitarString, len(tuning))
 	for i, openNote := range tuning {
 		rev := len(tuning) - 1 - i // reverse the index to start from the lowest string (common tab convention)
@@ -66,17 +70,17 @@ func initGuitarStrings(tuning []string, frets int) []GuitarString {
 		for fret := 0; fret <= frets; fret++ {
 			noteName, err := calculateNoteName(openNote, fret)
 			if err != nil {
-				panic(fmt.Sprintf("error calculating note name for string %d, fret %d: %v", rev+1, fret, err))
+				return nil, fmt.Errorf("error calculating note name for string %d, fret %d: %v", rev+1, fret, err)
 			}
 			notes[fret] = Note{
 				Name:   noteName,
-				Hidden: true,
+				Hidden: false,
 			}
 		}
 		strs[rev] = GuitarString{Notes: notes}
 	}
 
-	return strs
+	return strs, nil
 }
 
 func calculateNoteName(openNote string, fret int) (string, error) {

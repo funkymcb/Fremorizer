@@ -4,6 +4,7 @@ package main
 // component library.
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -19,13 +20,13 @@ func main() {
 	}
 }
 
-type (
-	errMsg error
-)
+type errMsg struct{ err error }
+
+func (e errMsg) Error() string { return e.err.Error() }
 
 type model struct {
 	textInput textinput.Model
-	guitar    *instruments.Guitar
+	guitar    *instruments.Guitar // TODO: model should contain instrument, not a guitar
 	err       error
 }
 
@@ -37,7 +38,14 @@ func initialModel() model {
 	ti.Width = 20
 
 	// TODO: ask the user for tuning and frets
-	g := instruments.NewGuitar([]string{"E", "A", "D", "G", "B", "E"}, 24)
+	g, err := instruments.NewGuitar([]string{"E", "A", "D", "G", "B", "E"}, 24)
+	if err != nil {
+		return model{
+			textInput: ti,
+			guitar:    g,
+			err:       err,
+		}
+	}
 
 	return model{
 		textInput: ti,
@@ -73,6 +81,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	if m.err != nil {
+		return fmt.Sprintf("\nWe had some trouble: %v\n\n(esc to quit)\n", m.err)
+	}
+
 	view := strings.Builder{}
 	view.WriteString(m.guitar.Render())
 	view.WriteString(m.textInput.View())

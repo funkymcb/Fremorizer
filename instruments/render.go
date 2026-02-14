@@ -5,12 +5,14 @@ import (
 	"strings"
 )
 
+// TODO: Render should render an instrument based on its type (guitar, bass, ukulele, etc.) and not just a guitar.
+// Maybe we can have a Renderable interface that each instrument implements and then the model can call the Render method on the instrument it contains.
 func (g *Guitar) Render() string {
 	markers := renderMarkers(g.Frets)
 	strs := renderStrings(g.Strings)
 
 	fretboard := strings.Builder{}
-	fretboard.WriteString(fmt.Sprintf("Guitar, tuning: %v, frets: %d\n", g.Tuning, g.Frets))
+	fretboard.WriteString(fmt.Sprintf("Guitar; tuning: %v, frets: %d\n", g.Tuning, g.Frets))
 	fretboard.WriteString(markers + "\n") // TODO: make marker position configurable (top or bottom of fretboard)
 	fretboard.WriteString(strs + "\n")
 	return fretboard.String()

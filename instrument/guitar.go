@@ -1,4 +1,4 @@
-package instruments
+package instrument
 
 import (
 	"fmt"

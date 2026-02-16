@@ -1,8 +1,5 @@
 package main
 
-// A simple program demonstrating the text input component from the Bubbles
-// component library.
-
 import (
 	"fmt"
 	"log"
@@ -10,7 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/funkymcb/fremorizer/instruments"
+	"github.com/funkymcb/fremorizer/instrument"
 )
 
 func main() {
@@ -26,7 +23,7 @@ func (e errMsg) Error() string { return e.err.Error() }
 
 type model struct {
 	textInput textinput.Model
-	guitar    *instruments.Guitar // TODO: model should contain instrument, not a guitar
+	guitar    *instrument.Guitar // TODO: model should contain instrument, not a guitar
 	err       error
 }
 
@@ -38,7 +35,7 @@ func initialModel() model {
 	ti.Width = 20
 
 	// TODO: ask the user for tuning and frets
-	g, err := instruments.NewGuitar([]string{"E", "A", "D", "G", "B", "E"}, 24)
+	g, err := instrument.NewGuitar([]string{"E", "A", "D", "G", "B", "E"}, 24)
 	if err != nil {
 		return model{
 			textInput: ti,
@@ -86,7 +83,7 @@ func (m model) View() string {
 	}
 
 	view := strings.Builder{}
-	view.WriteString(m.guitar.Render())
+	view.WriteString(instrument.Render(m.guitar))
 	view.WriteString(m.textInput.View())
 	view.WriteString("\n(esc to quit)\n")
 

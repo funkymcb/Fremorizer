@@ -15,11 +15,6 @@ type GuitarString struct {
 	Notes []Note
 }
 
-type Note struct {
-	Name   string
-	Hidden bool
-}
-
 func NewGuitar(tuning []string, frets int) (*Guitar, error) {
 	// Guitar should have between 6 and 8 strings
 	numStrings := len(tuning)
@@ -69,32 +64,13 @@ func initGuitarStrings(tuning []string, frets int) ([]GuitarString, error) {
 				return nil, fmt.Errorf("error calculating note name for string %d, fret %d: %v", rev+1, fret, err)
 			}
 			notes[fret] = Note{
-				Name:   noteName,
-				Hidden: true,
+				Name:     noteName,
+				Hidden:   true,
+				Demanded: false,
 			}
 		}
 		strs[rev] = GuitarString{Notes: notes}
 	}
 
 	return strs, nil
-}
-
-func calculateNoteName(openNote string, fret int) (string, error) {
-	openNote = strings.ToUpper(openNote)
-
-	index, ok := noteIndex[openNote]
-	if !ok {
-		return "", fmt.Errorf("invalid note name: %s", openNote)
-	}
-
-	// Calculate the note index for the given fret, wrapping around using modulo 12 (the number of semitones in an octave)
-	resultIndex := (index + fret) % 12
-
-	// maintain reverse mapping of noteIndex to get the note name from the index
-	reverse := make(map[int]string)
-	for k, v := range noteIndex {
-		reverse[v] = k
-	}
-
-	return reverse[resultIndex], nil
 }

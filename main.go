@@ -22,6 +22,7 @@ type errMsg struct{ err error }
 func (e errMsg) Error() string { return e.err.Error() }
 
 type model struct {
+	// gameModes     []string // TODO: add different game modes
 	textInput textinput.Model
 	guitar    *instrument.Guitar // TODO: model should contain instrument, not a guitar
 	err       error
@@ -56,14 +57,19 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// m.guitar.Strings[5].Notes[24].Hidden = false
+	// m.guitar.Strings[5].Notes[12].Demanded = true
 
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.Type {
-		case tea.KeyEnter, tea.KeyCtrlC, tea.KeyEsc:
+		case tea.KeyCtrlC, tea.KeyEsc:
+			return m, tea.Quit
+		}
+
+		switch msg.String() {
+		case "q":
 			return m, tea.Quit
 		}
 
@@ -83,6 +89,7 @@ func (m model) View() string {
 	}
 
 	view := strings.Builder{}
+	// IDEA: when tick second is even render '?' when tick is odd render '_'
 	view.WriteString(instrument.Render(m.guitar))
 	view.WriteString(m.textInput.View())
 	view.WriteString("\n(esc to quit)\n")

@@ -37,13 +37,16 @@ func renderStrings(strs []GuitarString) string {
 		// open string
 		if s.Notes[0].Name != "" {
 			sb.WriteString(fmt.Sprintf("%s ", s.Notes[0].Name))
-		} else {
-			sb.WriteString("   ")
 		}
 
 		for fretIndex, note := range s.Notes {
 			if fretIndex == 0 {
 				continue // skip the open string since we already rendered it
+			}
+
+			if note.Demanded {
+				sb.WriteString("|-(%s)-")
+				continue
 			}
 
 			if note.Hidden {

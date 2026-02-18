@@ -20,22 +20,6 @@ type Note struct {
 	Hidden bool
 }
 
-// TODO: add toggle for sharps/flats and update note names accordingly
-var noteIndex = map[string]int{
-	"C":     0,
-	"C#/Db": 1,
-	"D":     2,
-	"D#/Eb": 3,
-	"E":     4,
-	"F":     5,
-	"F#/Gb": 6,
-	"G":     7,
-	"G#/Ab": 8,
-	"A":     9,
-	"A#/Bb": 10,
-	"B":     11,
-}
-
 func NewGuitar(tuning []string, frets int) (*Guitar, error) {
 	// Guitar should have between 6 and 8 strings
 	numStrings := len(tuning)
@@ -60,6 +44,18 @@ func NewGuitar(tuning []string, frets int) (*Guitar, error) {
 	}, nil
 }
 
+// Render returns a string representation of the guitar, including its tuning, fret markers, and strings with their notes.
+func (g *Guitar) Render() string {
+	markers := renderMarkers(g.Frets)
+	strs := renderStrings(g.Strings)
+
+	fretboard := strings.Builder{}
+	fretboard.WriteString(fmt.Sprintf("Guitar; tuning: %v, frets: %d\n", g.Tuning, g.Frets))
+	fretboard.WriteString(markers + "\n") // TODO: make marker position configurable (top or bottom of fretboard)
+	fretboard.WriteString(strs + "\n")
+	return fretboard.String()
+}
+
 // createGuitarStrings creates a list of GuitarString objects based on the tuning and number of frets.
 func initGuitarStrings(tuning []string, frets int) ([]GuitarString, error) {
 	strs := make([]GuitarString, len(tuning))
@@ -74,7 +70,7 @@ func initGuitarStrings(tuning []string, frets int) ([]GuitarString, error) {
 			}
 			notes[fret] = Note{
 				Name:   noteName,
-				Hidden: false,
+				Hidden: true,
 			}
 		}
 		strs[rev] = GuitarString{Notes: notes}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,6 +18,8 @@ func main() {
 	}
 }
 
+type tickMsg time.Time
+
 type errMsg struct{ err error }
 
 func (e errMsg) Error() string { return e.err.Error() }
@@ -25,6 +28,7 @@ type model struct {
 	// gameModes     []string // TODO: add different game modes
 	textInput textinput.Model
 	guitar    *instrument.Guitar // TODO: model should contain instrument, not a guitar
+	blink     int
 	err       error
 }
 
@@ -41,6 +45,7 @@ func initialModel() model {
 		return model{
 			textInput: ti,
 			guitar:    g,
+			blink:     0,
 			err:       err,
 		}
 	}
@@ -48,16 +53,23 @@ func initialModel() model {
 	return model{
 		textInput: ti,
 		guitar:    g,
+		blink:     0,
 		err:       nil,
 	}
 }
 
+func tick() tea.Cmd {
+	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
 func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	return tick()
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// m.guitar.Strings[5].Notes[12].Demanded = true
+	// m.guitar.Strings[5].Notes[1].ToBeDetermined = true
 
 	var cmd tea.Cmd
 
@@ -72,6 +84,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q":
 			return m, tea.Quit
 		}
+
+	case tickMsg:
+		// Toggle between 0 and 1
+		if m.blink == 0 {
+			m.blink = 1
+		} else {
+			m.blink = 0
+		}
+		return m, tick()
 
 	// We handle errors just like any other message
 	case errMsg:
@@ -89,8 +110,7 @@ func (m model) View() string {
 	}
 
 	view := strings.Builder{}
-	// IDEA: when tick second is even render '?' when tick is odd render '_'
-	view.WriteString(instrument.Render(m.guitar))
+	view.WriteString(instrument.Render(m.guitar, m.blink))
 	view.WriteString(m.textInput.View())
 	view.WriteString("\n(esc to quit)\n")
 

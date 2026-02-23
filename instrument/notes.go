@@ -6,9 +6,9 @@ import (
 )
 
 type Note struct {
-	Name     string
-	Hidden   bool
-	Demanded bool
+	Name           string
+	Hidden         bool
+	ToBeDetermined bool
 }
 
 // TODO: add toggle for sharps/flats and update note names accordingly

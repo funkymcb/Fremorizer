@@ -40,9 +40,9 @@ func NewGuitar(tuning []string, frets int) (*Guitar, error) {
 }
 
 // Render returns a string representation of the guitar, including its tuning, fret markers, and strings with their notes.
-func (g *Guitar) Render() string {
+func (g *Guitar) Render(blink int) string {
 	markers := renderMarkers(g.Frets)
-	strs := renderStrings(g.Strings)
+	strs := renderStrings(g.Strings, blink)
 
 	fretboard := strings.Builder{}
 	fretboard.WriteString(fmt.Sprintf("Guitar; tuning: %v, frets: %d\n", g.Tuning, g.Frets))
@@ -64,9 +64,9 @@ func initGuitarStrings(tuning []string, frets int) ([]GuitarString, error) {
 				return nil, fmt.Errorf("error calculating note name for string %d, fret %d: %v", rev+1, fret, err)
 			}
 			notes[fret] = Note{
-				Name:     noteName,
-				Hidden:   true,
-				Demanded: false,
+				Name:           noteName,
+				Hidden:         true,
+				ToBeDetermined: false,
 			}
 		}
 		strs[rev] = GuitarString{Notes: notes}

@@ -31,7 +31,7 @@ func renderMarkers(fret int) string {
 }
 
 // renderStrings returns a string representation of the guitar strings and their notes.
-func renderStrings(strs []GuitarString) string {
+func renderStrings(strs []GuitarString, blink int) string {
 	var sb strings.Builder
 	for _, s := range strs {
 		// open string
@@ -44,8 +44,12 @@ func renderStrings(strs []GuitarString) string {
 				continue // skip the open string since we already rendered it
 			}
 
-			if note.Demanded {
-				sb.WriteString("|-(%s)-")
+			if note.ToBeDetermined {
+				if blink == 0 {
+					sb.WriteString("|-(?)-")
+				} else {
+					sb.WriteString("|-(_)-")
+				}
 				continue
 			}
 

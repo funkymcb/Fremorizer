@@ -9,6 +9,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/funkymcb/fremorizer/instrument"
+	"github.com/funkymcb/fremorizer/mode"
 )
 
 func main() {
@@ -65,12 +66,11 @@ func tick() tea.Cmd {
 }
 
 func (m model) Init() tea.Cmd {
+	mode.RandomSingleNoteToBeDetermined(m.guitar) // TODO: init based on game mode
 	return tick()
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// m.guitar.Strings[5].Notes[1].ToBeDetermined = true
-
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {

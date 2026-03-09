@@ -4,7 +4,7 @@ TUI to help you memorize the guitar fretboard
 
 ## TODO
 
-- [ ] implement basic layout
+- [x] implement basic layout
 
 ## Ideas
 

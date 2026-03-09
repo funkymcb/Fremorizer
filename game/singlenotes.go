@@ -31,7 +31,7 @@ func (g *SingleNoteGame) CheckAnswer(answer string) bool {
 			if n.ToBeDetermined {
 				note := strings.ToLower(n.Name)
 				answer = strings.ToLower(answer)
-				return strings.Contains(note, answer)
+				return strings.Contains(note, answer) // FIX: either note is correct. split longer notes into slices and check if any matches
 			}
 		}
 	}

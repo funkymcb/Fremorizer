@@ -1,0 +1,155 @@
+package instrument
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+)
+
+var (
+	styleGreen  = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
+	styleRed    = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
+	styleBlue   = lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
+	styleCursor = lipgloss.NewStyle().Background(lipgloss.Color("5")).Foreground(lipgloss.Color("15")).Bold(true)
+	styleMarked = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)
+)
+
+// RenderOpts controls how the fretboard is rendered.
+type RenderOpts struct {
+	Blink        int  // 0 or 1 for blinking animation
+	FretSetMode  bool // mode 2: highlight a fret set
+	FretSetStart int  // first fret of the highlighted set (1-indexed)
+	FretSetEnd   int  // last fret of highlighted set (inclusive)
+	CursorString int  // mode 2: cursor row (0-indexed, from top of display)
+	CursorFret   int  // mode 2: cursor fret (0-indexed absolute, 0 = open string)
+}
+
+// Render returns an ASCII art representation of the fretboard.
+func Render(inst *Instrument, opts RenderOpts) string {
+	var sb strings.Builder
+
+	header := fmt.Sprintf("%s | tuning: %s | frets: %d",
+		inst.Type, strings.Join(inst.Tuning, "-"), inst.Frets)
+	sb.WriteString(header + "\n")
+	sb.WriteString(renderMarkers(inst.Frets, opts) + "\n")
+	sb.WriteString(renderStrings(inst.Strings, opts))
+
+	return sb.String()
+}
+
+func renderMarkers(frets int, opts RenderOpts) string {
+	var sb strings.Builder
+	sb.WriteString("  ") // align with string name prefix
+
+	for i := 1; i <= frets; i++ {
+		cell := "     "
+		switch i {
+		case 1, 3, 5, 7, 9, 15, 17, 19, 24:
+			cell = fmt.Sprintf("  %-3d ", i)
+		case 12, 21:
+			cell = fmt.Sprintf("  %-3d  ", i)
+		default:
+			if i < 10 {
+				cell = "      "
+			} else {
+				cell = "     "
+			}
+		}
+
+		if opts.FretSetMode && i >= opts.FretSetStart && i <= opts.FretSetEnd {
+			sb.WriteString(styleBlue.Render(cell))
+		} else {
+			sb.WriteString(cell)
+		}
+
+		// gap after fret set
+		if opts.FretSetMode && i == opts.FretSetEnd {
+			sb.WriteString("  ")
+		}
+	}
+	return sb.String()
+}
+
+func renderStrings(strs []InstrumentString, opts RenderOpts) string {
+	var sb strings.Builder
+
+	for strIdx, s := range strs {
+		// open string note name (left label)
+		openName := s.Notes[0].Name
+		if len(openName) == 1 {
+			sb.WriteString(fmt.Sprintf("%s ", openName))
+		} else {
+			// for sharps/flats just show the first part
+			sb.WriteString(fmt.Sprintf("%s", strings.Split(openName, "/")[0]))
+		}
+
+		for fretIdx, note := range s.Notes {
+			if fretIdx == 0 {
+				continue // open string already rendered as label
+			}
+
+			isCursor := opts.FretSetMode &&
+				strIdx == opts.CursorString &&
+				fretIdx == opts.CursorFret
+
+			cell := renderCell(note, opts.Blink, isCursor)
+
+			if opts.FretSetMode && fretIdx >= opts.FretSetStart && fretIdx <= opts.FretSetEnd {
+				// fret set frets: render in blue unless overridden by cursor/mark
+				if !isCursor && !note.Marked {
+					cell = styleBlue.Render(cell)
+				}
+			}
+
+			sb.WriteString(cell)
+
+			// visual gap after fret set
+			if opts.FretSetMode && fretIdx == opts.FretSetEnd {
+				sb.WriteString("  ")
+			}
+		}
+		sb.WriteString("|\n")
+	}
+
+	return sb.String()
+}
+
+func renderCell(note Note, blink int, isCursor bool) string {
+	if note.ToBeDetermined {
+		var inner string
+		if blink == 0 {
+			inner = "(?)"
+		} else {
+			inner = "(_)"
+		}
+		return fmt.Sprintf("|-%s-", inner)
+	}
+
+	if note.Revealed {
+		var label string
+		if len(note.Name) == 1 {
+			label = fmt.Sprintf("--%s--", note.Name)
+		} else {
+			label = note.Name
+		}
+		if note.Correct {
+			return "|" + styleGreen.Render(label)
+		}
+		return "|" + styleRed.Render(label)
+	}
+
+	if note.Marked {
+		inner := "--x--"
+		if isCursor {
+			return "|" + styleCursor.Render(inner)
+		}
+		return "|" + styleMarked.Render(inner)
+	}
+
+	if isCursor {
+		return "|" + styleCursor.Render("-----")
+	}
+
+	return "|-----"
+}

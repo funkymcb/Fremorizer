@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/petery/Coding/github.com/funkymcb/Fremorizer -type f -not -path ./.git/*)",
+      "Bash(git ls-tree:*)",
+      "Bash(go build:*)",
+      "Bash(go vet:*)"
+    ]
+  }
+}

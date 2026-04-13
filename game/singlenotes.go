@@ -2,60 +2,56 @@ package game
 
 import (
 	"math/rand"
-	"strings"
 
 	"github.com/funkymcb/fremorizer/instrument"
 )
 
-// TODO: fix to not use guitar but instrument interface instead
+// SingleNoteGame implements game mode 1: guess a random note on the fretboard.
 type SingleNoteGame struct {
-	Instrument *instrument.Guitar
+	inst        *instrument.Instrument
+	stringIndex int
+	noteIndex   int
 }
 
-func NewSingleNoteGame(g *instrument.Guitar) Game {
-	stringIndex, noteIndex := randomNote(g)
-	g.Strings[stringIndex].Notes[noteIndex].ToBeDetermined = true
+func NewSingleNoteGame(inst *instrument.Instrument) *SingleNoteGame {
+	g := &SingleNoteGame{inst: inst}
+	g.pickRandom()
+	return g
+}
 
-	return &SingleNoteGame{
-		Instrument: g,
-	}
+func (g *SingleNoteGame) GetInstrument() *instrument.Instrument {
+	return g.inst
 }
 
 func (g *SingleNoteGame) CheckAnswer(answer string) bool {
-	if answer == "" {
-		return false
-	}
-
-	for _, s := range g.Instrument.Strings {
-		for _, n := range s.Notes {
-			if n.ToBeDetermined {
-				note := strings.ToLower(n.Name)
-				answer = strings.ToLower(answer)
-				return strings.Contains(note, answer) // FIX: either note is correct. split longer notes into slices and check if any matches
-			}
-		}
-	}
-	return false
+	note := g.inst.Strings[g.stringIndex].Notes[g.noteIndex]
+	return instrument.NoteMatches(note.Name, answer)
 }
 
-// TODO: check this impl
 func (g *SingleNoteGame) Next() error {
-	// Reset the current note to be determined
-	for _, s := range g.Instrument.Strings {
-		for i := range s.Notes {
-			s.Notes[i].ToBeDetermined = false
-		}
-	}
-
-	stringIndex, noteIndex := randomNote(g.Instrument)
-	g.Instrument.Strings[stringIndex].Notes[noteIndex].ToBeDetermined = true
-
+	// clear previous
+	g.inst.Strings[g.stringIndex].Notes[g.noteIndex].ToBeDetermined = false
+	g.inst.Strings[g.stringIndex].Notes[g.noteIndex].Revealed = false
+	g.inst.Strings[g.stringIndex].Notes[g.noteIndex].Correct = false
+	g.pickRandom()
 	return nil
 }
 
-func randomNote(g *instrument.Guitar) (int, int) {
-	stringIndex := rand.Intn(len(g.Strings))
-	noteIndex := rand.Intn(len(g.Strings[stringIndex].Notes))
+// RevealNote marks the current note as revealed with the given correctness.
+func (g *SingleNoteGame) RevealNote(correct bool) {
+	g.inst.Strings[g.stringIndex].Notes[g.noteIndex].ToBeDetermined = false
+	g.inst.Strings[g.stringIndex].Notes[g.noteIndex].Revealed = true
+	g.inst.Strings[g.stringIndex].Notes[g.noteIndex].Correct = correct
+}
 
-	return stringIndex, noteIndex
+// CurrentNoteName returns the name of the current note to be guessed.
+func (g *SingleNoteGame) CurrentNoteName() string {
+	return g.inst.Strings[g.stringIndex].Notes[g.noteIndex].Name
+}
+
+func (g *SingleNoteGame) pickRandom() {
+	g.stringIndex = rand.Intn(len(g.inst.Strings))
+	// fret 1..Frets (skip open string at index 0)
+	g.noteIndex = rand.Intn(g.inst.Frets) + 1
+	g.inst.Strings[g.stringIndex].Notes[g.noteIndex].ToBeDetermined = true
 }

@@ -1,6 +1,6 @@
 # Fremorizer
 
-TUI to help you memorize the guitar fretboard utilizing [bubbletea](https://github.com/charmbracelet/bubbletea) TUI framework
+TUI written in go to help you memorize the guitar fretboard utilizing [bubbletea](https://github.com/charmbracelet/bubbletea) TUI framework<br>
 
 ## Structure
 
@@ -34,7 +34,9 @@ For Ukulele 4 strings is the only option.
 
 #### Choose tuning
 
-For guitar and bass the standard tuning is E standard (E, A, D, G, B, E)<br>
+For guitar the standard tuning is E standard (E, A, D, G, B, E)<br>
+For bass default tuning is is (E, A, D, G)<br>
+For Ukulele default tuning is (G, C, E, A)<br>
 You can change the tuning by changing the tuning for each string.
 
 #### Choose Number of frets
@@ -56,6 +58,8 @@ G |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
 D |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
 A |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
 E |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+
+Pleas enter your guess: _
 ```
 
 In game mode 1 (1 note per string) the note to be determined will look like this '(?)' with a blinking questionmark.<br>
@@ -71,26 +75,30 @@ G |-----|-----|-----|-(?)-|-----|-----|-----|-----|-----|-----|-----|-----|
 D |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
 A |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
 E |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+
+Pleas enter your guess: _
 ```
 
 #### Game mode 2 (Random note per fret set)
 
-In this game mode the layout will basically the same. But 3 frets strings will be highlighted with blue color.<br>
+In this game mode the layout will basically the same. But 3 frets strings will be highlighted with blue color and whitespace seperation from the other frets.<br>
 The note to be determined will be shown at the top of the fretboard.<br>
 You then need to go thorught the frets and mark (by pressing space or enter) every spot where this note appears within the 3 frets<br>
+Marked notes will be marked with an 'x'<br>
 You can navigate 2 dimensionally through the strings and frets wither with arrow keys or vim keys (h, j, k, l)<br>
+When all occurances are marked the next note to be determined will be shown randomly
 
 ```text
 Note to be Determined: C#
 
 Fretboard:
-     1           3           5           7           9                12
-E |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
-B |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
-G |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
-D |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
-A |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
-E |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+     1             3           5             7           9                12
+E |-----|-----  |-----|-----|-----|  -----|-----|-----|-----|-----|-----|-----|
+B |-----|-----  |-----|-----|-----|  -----|-----|-----|-----|-----|-----|-----|
+G |-----|-----  |-----|-----|-----|  -----|-----|-----|-----|-----|-----|-----|
+D |-----|-----  |-----|-----|-----|  -----|-----|-----|-----|-----|-----|-----|
+A |-----|-----  |-----|--x--|-----|  -----|-----|-----|-----|-----|-----|-----|
+E |-----|-----  |-----|-----|-----|  -----|-----|-----|-----|-----|-----|-----|
 ```
 
 #### Game mode 3 (notes per chord)

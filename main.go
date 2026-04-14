@@ -41,6 +41,7 @@ const (
 	optItemStrings
 	optItemTuning
 	optItemFrets
+	optItemFretSetMode
 	optItemBack
 	optItemCount
 )
@@ -70,10 +71,11 @@ type model struct {
 	tuneInput    textinput.Model
 
 	// current instrument config
-	instrType  string
-	numStrings int
-	tuning     []string
-	frets      int
+	instrType         string
+	numStrings        int
+	tuning            []string
+	frets             int
+	fretSetSequential bool
 
 	// active game
 	selectedMode int
@@ -98,15 +100,16 @@ func initialModel() model {
 	tuneInput.Width = 10
 
 	return model{
-		state:      stateModeSelect,
-		modeCursor: 0,
-		optCursor:  0,
-		instrType:  "guitar",
-		numStrings: 6,
-		tuning:     instrument.DefaultGuitarTuning(6),
-		frets:      12,
-		textInput:  ti,
-		tuneInput:  tuneInput,
+		state:             stateModeSelect,
+		modeCursor:        0,
+		optCursor:         0,
+		instrType:         "guitar",
+		numStrings:        6,
+		tuning:            instrument.DefaultGuitarTuning(6),
+		frets:             12,
+		fretSetSequential: true,
+		textInput:         ti,
+		tuneInput:         tuneInput,
 	}
 }
 
@@ -203,7 +206,7 @@ func (m model) startGame(mode string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	g, err := game.New(mode, inst)
+	g, err := game.New(mode, inst, map[string]any{"sequential": m.fretSetSequential})
 	if err != nil {
 		m.feedback = fmt.Sprintf("Error: %v", err)
 		return m, nil
@@ -220,8 +223,6 @@ func (m model) startGame(mode string) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	instruments := []string{"guitar", "bass", "ukulele"}
-
 	switch msg.String() {
 	case "ctrl+c":
 		return m, tea.Quit
@@ -235,45 +236,33 @@ func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.optCursor < int(optItemCount)-1 {
 			m.optCursor++
 		}
-	case "enter", " ":
+	case "enter", " ", "+", "=", "right", "l":
 		switch optItem(m.optCursor) {
 		case optItemInstrument:
-			// cycle instrument
-			for i, name := range instruments {
-				if name == m.instrType {
-					m.instrType = instruments[(i+1)%len(instruments)]
-					break
-				}
-			}
-			// update defaults for new instrument
-			m.numStrings = defaultStringCount(m.instrType)
-			m.tuning = defaultTuning(m.instrType, m.numStrings)
-		case optItemStrings:
-			// handled by +/-
-		case optItemTuning:
-			m.state = stateOptionsTuning
-			m.tuneCursor = 0
-			m.tuneEditMode = false
-		case optItemFrets:
-			// handled by +/-
-		case optItemBack:
-			m.state = stateModeSelect
-		}
-	case "+", "=", "right", "l":
-		switch optItem(m.optCursor) {
+			m.cycleInstrument(+1)
 		case optItemStrings:
 			max := maxStrings(m.instrType)
 			if m.numStrings < max {
 				m.numStrings++
 				m.tuning = defaultTuning(m.instrType, m.numStrings)
 			}
+		case optItemTuning:
+			m.state = stateOptionsTuning
+			m.tuneCursor = 0
+			m.tuneEditMode = false
 		case optItemFrets:
 			if m.frets < 24 {
 				m.frets++
 			}
+		case optItemFretSetMode:
+			m.fretSetSequential = !m.fretSetSequential
+		case optItemBack:
+			m.state = stateModeSelect
 		}
 	case "-", "left", "h":
 		switch optItem(m.optCursor) {
+		case optItemInstrument:
+			m.cycleInstrument(-1)
 		case optItemStrings:
 			min := minStrings(m.instrType)
 			if m.numStrings > min {
@@ -284,6 +273,8 @@ func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.frets > 12 {
 				m.frets--
 			}
+		case optItemFretSetMode:
+			m.fretSetSequential = !m.fretSetSequential
 		}
 	}
 
@@ -463,10 +454,15 @@ func (m model) updateFretSetMode(msg tea.KeyMsg, fsGame *game.FretSetGameImpl) (
 		cs, cf := fsGame.GetCursor()
 		fsGame.ToggleMark(cs, cf)
 		if fsGame.IsComplete() {
+			prevNote := fsGame.GetTargetNote()
+			fretSetDone := fsGame.IsFretSetComplete()
 			if err := fsGame.Next(); err != nil {
 				m.feedback = fmt.Sprintf("Error: %v", err)
+			} else if fretSetDone {
+				m.feedback = fmt.Sprintf("Fret set complete! Now find '%s'.", fsGame.GetTargetNote())
+			} else {
+				m.feedback = fmt.Sprintf("Found all '%s'! Now find '%s'.", prevNote, fsGame.GetTargetNote())
 			}
-			m.feedback = fmt.Sprintf("Correct! Find '%s' in the new fret set.", fsGame.GetTargetNote())
 		}
 	}
 
@@ -496,7 +492,7 @@ func (m model) viewModeSelect() string {
 
 	modes := []string{
 		"1. Guess a random note (per string)",
-		"2. Find all occurrences in a fret set",
+		"2. Find notes in a set of 3 frets",
 		"3. Chord notes (coming soon)",
 	}
 	for i, mode := range modes {
@@ -519,11 +515,16 @@ func (m model) viewOptions() string {
 	var sb strings.Builder
 	sb.WriteString(styleTitle.Render("Options") + "\n\n")
 
+	fretSetModeLabel := "random"
+	if m.fretSetSequential {
+		fretSetModeLabel = "sequential (fret 1 → 24)"
+	}
 	labels := []string{
-		fmt.Sprintf("Instrument:  %s", m.instrType),
-		fmt.Sprintf("Strings:     %d  (range: %d-%d)", m.numStrings, minStrings(m.instrType), maxStrings(m.instrType)),
-		fmt.Sprintf("Tuning:      %s", strings.Join(m.tuning, "-")),
-		fmt.Sprintf("Frets:       %d  (range: 12-24)", m.frets),
+		fmt.Sprintf("Instrument:      %s", m.instrType),
+		fmt.Sprintf("Strings:         %d  (range: %d-%d)", m.numStrings, minStrings(m.instrType), maxStrings(m.instrType)),
+		fmt.Sprintf("Tuning:          %s", strings.Join(m.tuning, "-")),
+		fmt.Sprintf("Frets:           %d  (range: 12-24)", m.frets),
+		fmt.Sprintf("Fret set mode:   %s", fretSetModeLabel),
 		"Back",
 	}
 
@@ -582,10 +583,9 @@ func (m model) viewPlaying() string {
 		opts.CursorString = cs
 		opts.CursorFret = cf
 
-		sb.WriteString(fmt.Sprintf("Note to find: %s\n\n",
-			styleTitle.Render(fsGame.GetTargetNote())))
 		sb.WriteString(instrument.Render(fsGame.GetInstrument(), opts))
-		sb.WriteString("\n")
+		sb.WriteString(fmt.Sprintf("\nNote to find: %s\n",
+			styleTitle.Render(fsGame.GetTargetNote())))
 		if m.feedback != "" {
 			sb.WriteString(m.feedback + "\n")
 		}
@@ -622,6 +622,19 @@ func renderProgressBar(correct, total, width int) string {
 	green := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 	bar := green.Render(strings.Repeat("█", filled)) + strings.Repeat("░", width-filled)
 	return fmt.Sprintf("Progress: [%s] %d%% (%d/%d)", bar, pct, correct, total)
+}
+
+func (m *model) cycleInstrument(dir int) {
+	instruments := []string{"guitar", "bass", "ukulele"}
+	for i, name := range instruments {
+		if name == m.instrType {
+			n := len(instruments)
+			m.instrType = instruments[(i+dir%n+n)%n]
+			break
+		}
+	}
+	m.numStrings = defaultStringCount(m.instrType)
+	m.tuning = defaultTuning(m.instrType, m.numStrings)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

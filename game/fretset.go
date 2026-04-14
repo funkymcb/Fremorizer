@@ -6,55 +6,40 @@ import (
 	"github.com/funkymcb/fremorizer/instrument"
 )
 
-// FretSetGameImpl implements game mode 2: find all occurrences of a note in a fret set.
+// FretSetGameImpl implements game mode 2.
+//
+// Flow:
+//  1. A fret set (3 consecutive frets) is shown.
+//  2. A target note is picked from the unsolved positions in that set.
+//  3. The player marks every occurrence of that note in the fret set.
+//  4. When all occurrences are correctly marked → those positions turn green (Solved).
+//  5. A new target note is picked from the remaining unsolved positions.
+//  6. When every position in the fret set is solved → the fret set advances.
 type FretSetGameImpl struct {
 	inst         *instrument.Instrument
 	targetNote   string
-	fretStart    int // 1-indexed
+	fretStart    int // 1-indexed, inclusive
 	fretEnd      int // inclusive
 	cursorString int
-	cursorFret   int // absolute fret index (1-indexed)
+	cursorFret   int
+	sequential   bool
 }
 
-func NewFretSetGame(inst *instrument.Instrument) *FretSetGameImpl {
-	g := &FretSetGameImpl{inst: inst}
-	g.pickRandom()
+func NewFretSetGame(inst *instrument.Instrument, sequential bool) *FretSetGameImpl {
+	g := &FretSetGameImpl{inst: inst, sequential: sequential}
+	g.initFretSet()
+	g.pickNextNote()
 	return g
 }
 
-func (g *FretSetGameImpl) GetInstrument() *instrument.Instrument {
-	return g.inst
-}
-
-func (g *FretSetGameImpl) GetTargetNote() string {
-	return g.targetNote
-}
-
-func (g *FretSetGameImpl) GetFretSetBounds() (int, int) {
-	return g.fretStart, g.fretEnd
-}
-
-func (g *FretSetGameImpl) GetCursor() (int, int) {
-	return g.cursorString, g.cursorFret
-}
+func (g *FretSetGameImpl) GetInstrument() *instrument.Instrument { return g.inst }
+func (g *FretSetGameImpl) GetTargetNote() string                  { return g.targetNote }
+func (g *FretSetGameImpl) GetFretSetBounds() (int, int)           { return g.fretStart, g.fretEnd }
+func (g *FretSetGameImpl) GetCursor() (int, int)                  { return g.cursorString, g.cursorFret }
 
 func (g *FretSetGameImpl) MoveCursor(ds, df int) {
-	newS := g.cursorString + ds
-	newF := g.cursorFret + df
-
-	numStrings := len(g.inst.Strings)
-	if newS < 0 {
-		newS = 0
-	} else if newS >= numStrings {
-		newS = numStrings - 1
-	}
-
-	if newF < g.fretStart {
-		newF = g.fretStart
-	} else if newF > g.fretEnd {
-		newF = g.fretEnd
-	}
-
+	newS := clamp(g.cursorString+ds, 0, len(g.inst.Strings)-1)
+	newF := clamp(g.cursorFret+df, g.fretStart, g.fretEnd)
 	g.cursorString = newS
 	g.cursorFret = newF
 }
@@ -67,14 +52,22 @@ func (g *FretSetGameImpl) ToggleMark(stringIdx, fretIdx int) {
 		return
 	}
 	note := &g.inst.Strings[stringIdx].Notes[fretIdx]
+	// don't allow marking already-solved positions
+	if note.Solved {
+		return
+	}
 	note.Marked = !note.Marked
 }
 
-// IsComplete returns true when all correct positions are marked and no incorrect ones.
+// IsComplete returns true when all occurrences of the current target note in the
+// fret set are marked and no wrong positions are marked.
 func (g *FretSetGameImpl) IsComplete() bool {
 	for _, s := range g.inst.Strings {
 		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
 			note := s.Notes[fret]
+			if note.Solved {
+				continue
+			}
 			isTarget := instrument.NoteMatches(note.Name, g.targetNote)
 			if isTarget != note.Marked {
 				return false
@@ -84,36 +77,126 @@ func (g *FretSetGameImpl) IsComplete() bool {
 	return true
 }
 
-// CheckAnswer is not used for fret set mode (navigation-based), always returns false.
-func (g *FretSetGameImpl) CheckAnswer(_ string) bool {
-	return false
-}
-
-func (g *FretSetGameImpl) Next() error {
-	// clear marks from current fret set
-	for si := range g.inst.Strings {
+// IsFretSetComplete returns true when all positions in the fret set are solved.
+// Call this before Next() to know whether the fret set will advance.
+func (g *FretSetGameImpl) IsFretSetComplete() bool {
+	for _, s := range g.inst.Strings {
 		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
-			g.inst.Strings[si].Notes[fret].Marked = false
+			if !s.Notes[fret].Solved && !instrument.NoteMatches(s.Notes[fret].Name, g.targetNote) {
+				return false
+			}
 		}
 	}
-	g.pickRandom()
+	return true
+}
+
+// CheckAnswer is unused in fret-set mode.
+func (g *FretSetGameImpl) CheckAnswer(_ string) bool { return false }
+
+// Next solves the current target note's positions, then either picks the next
+// note in the fret set or advances to the next fret set if all positions are done.
+func (g *FretSetGameImpl) Next() error {
+	g.solveCurrentNote()
+
+	if g.isFretSetFullySolved() {
+		g.clearFretSet()
+		g.advanceFretSet()
+	}
+
+	g.pickNextNote()
 	return nil
 }
 
-func (g *FretSetGameImpl) pickRandom() {
-	// pick a random fret set start (ensure 3 frets fit)
-	maxStart := g.inst.Frets - 2
-	if maxStart < 1 {
-		maxStart = 1
+// ── internal ──────────────────────────────────────────────────────────────────
+
+func (g *FretSetGameImpl) solveCurrentNote() {
+	for si := range g.inst.Strings {
+		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
+			n := &g.inst.Strings[si].Notes[fret]
+			if instrument.NoteMatches(n.Name, g.targetNote) {
+				n.Solved = true
+				n.Marked = false
+			}
+		}
 	}
-	g.fretStart = rand.Intn(maxStart) + 1
+}
+
+func (g *FretSetGameImpl) isFretSetFullySolved() bool {
+	for _, s := range g.inst.Strings {
+		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
+			if !s.Notes[fret].Solved {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (g *FretSetGameImpl) clearFretSet() {
+	for si := range g.inst.Strings {
+		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
+			g.inst.Strings[si].Notes[fret].Solved = false
+			g.inst.Strings[si].Notes[fret].Marked = false
+		}
+	}
+}
+
+func (g *FretSetGameImpl) initFretSet() {
+	if g.sequential {
+		g.fretStart = 1
+	} else {
+		g.fretStart = g.randomStart()
+	}
 	g.fretEnd = g.fretStart + 2
+}
 
-	// pick a random target note from the chromatic scale
-	notes := instrument.NoteNames()
-	g.targetNote = notes[rand.Intn(len(notes))]
+func (g *FretSetGameImpl) advanceFretSet() {
+	if g.sequential {
+		next := g.fretStart + 3
+		if next+2 > g.inst.Frets {
+			next = 1
+		}
+		g.fretStart = next
+	} else {
+		g.fretStart = g.randomStart()
+	}
+	g.fretEnd = g.fretStart + 2
+}
 
-	// reset cursor to top-left of fret set
+func (g *FretSetGameImpl) pickNextNote() {
+	// collect unique note names from unsolved positions in the fret set
+	seen := map[string]bool{}
+	var candidates []string
+	for _, s := range g.inst.Strings {
+		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
+			n := s.Notes[fret]
+			if !n.Solved && !seen[n.Name] {
+				seen[n.Name] = true
+				candidates = append(candidates, n.Name)
+			}
+		}
+	}
+	if len(candidates) > 0 {
+		g.targetNote = candidates[rand.Intn(len(candidates))]
+	}
 	g.cursorString = 0
 	g.cursorFret = g.fretStart
+}
+
+func (g *FretSetGameImpl) randomStart() int {
+	max := g.inst.Frets - 2
+	if max < 1 {
+		max = 1
+	}
+	return rand.Intn(max) + 1
+}
+
+func clamp(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
 }

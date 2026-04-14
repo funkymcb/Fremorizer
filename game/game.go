@@ -28,12 +28,14 @@ type FretSetGame interface {
 }
 
 // New creates a Game for the given mode and instrument.
-func New(mode string, inst *instrument.Instrument) (Game, error) {
+// opts is an optional map of mode-specific settings (e.g. "sequential": true).
+func New(mode string, inst *instrument.Instrument, opts map[string]any) (Game, error) {
 	switch mode {
 	case "single":
 		return NewSingleNoteGame(inst), nil
 	case "fretset":
-		return NewFretSetGame(inst), nil
+		sequential, _ := opts["sequential"].(bool)
+		return NewFretSetGame(inst, sequential), nil
 	default:
 		return nil, fmt.Errorf("unknown game mode: %s", mode)
 	}

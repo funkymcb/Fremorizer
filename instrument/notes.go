@@ -10,6 +10,7 @@ type Note struct {
 	Hidden         bool
 	ToBeDetermined bool
 	Marked         bool // mode 2: player marked this position
+	Solved         bool // mode 2: this position was correctly found and is now green
 	Revealed       bool // mode 1: show after answer
 	Correct        bool // mode 1: was the answer correct
 	WasMissed      bool // mode 1: note was previously guessed wrong, show red (?)

@@ -59,6 +59,11 @@ func renderMarkers(frets int, opts RenderOpts) string {
 			cell = "      " // 6 spaces — one per fret cell char
 		}
 
+		// gap before fret set
+		if opts.FretSetMode && i == opts.FretSetStart {
+			sb.WriteString("  ")
+		}
+
 		if opts.FretSetMode && i >= opts.FretSetStart && i <= opts.FretSetEnd {
 			sb.WriteString(styleBlue.Render(cell))
 		} else {
@@ -104,6 +109,11 @@ func renderStrings(strs []InstrumentString, opts RenderOpts) string {
 				}
 			}
 
+			// visual gap before fret set
+			if opts.FretSetMode && fretIdx == opts.FretSetStart {
+				sb.WriteString("  ")
+			}
+
 			sb.WriteString(cell)
 
 			// visual gap after fret set
@@ -146,6 +156,10 @@ func renderCell(note Note, blink int, isCursor bool) string {
 			return "|" + styleGreen.Render("-----")
 		}
 		return "|" + styleRed.Render("-----")
+	}
+
+	if note.Solved {
+		return "|" + styleGreen.Render("-----")
 	}
 
 	if note.Marked {

@@ -63,7 +63,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fremorizer-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: fremorizer-*.tar.gz fremorizer-*.zip
+          path: |
+            fremorizer-*.tar.gz
+            fremorizer-*.zip
           if-no-files-found: error
           retention-days: 1  # only needed until the release job picks them up
 

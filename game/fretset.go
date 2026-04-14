@@ -38,10 +38,10 @@ func (g *FretSetGameImpl) GetFretSetBounds() (int, int)           { return g.fre
 func (g *FretSetGameImpl) GetCursor() (int, int)                  { return g.cursorString, g.cursorFret }
 
 func (g *FretSetGameImpl) MoveCursor(ds, df int) {
-	newS := clamp(g.cursorString+ds, 0, len(g.inst.Strings)-1)
-	newF := clamp(g.cursorFret+df, g.fretStart, g.fretEnd)
-	g.cursorString = newS
-	g.cursorFret = newF
+	n := len(g.inst.Strings)
+	g.cursorString = ((g.cursorString + ds) % n + n) % n
+	w := g.fretEnd - g.fretStart + 1
+	g.cursorFret = g.fretStart + ((g.cursorFret-g.fretStart+df)%w+w)%w
 }
 
 func (g *FretSetGameImpl) ToggleMark(stringIdx, fretIdx int) {
@@ -68,7 +68,7 @@ func (g *FretSetGameImpl) IsComplete() bool {
 			if note.Solved {
 				continue
 			}
-			isTarget := instrument.NoteMatches(note.Name, g.targetNote)
+			isTarget := note.Name == g.targetNote
 			if isTarget != note.Marked {
 				return false
 			}
@@ -82,7 +82,8 @@ func (g *FretSetGameImpl) IsComplete() bool {
 func (g *FretSetGameImpl) IsFretSetComplete() bool {
 	for _, s := range g.inst.Strings {
 		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
-			if !s.Notes[fret].Solved && !instrument.NoteMatches(s.Notes[fret].Name, g.targetNote) {
+			n := s.Notes[fret]
+			if !n.Solved && n.Name != g.targetNote {
 				return false
 			}
 		}
@@ -113,7 +114,7 @@ func (g *FretSetGameImpl) solveCurrentNote() {
 	for si := range g.inst.Strings {
 		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
 			n := &g.inst.Strings[si].Notes[fret]
-			if instrument.NoteMatches(n.Name, g.targetNote) {
+			if n.Name == g.targetNote {
 				n.Solved = true
 				n.Marked = false
 			}

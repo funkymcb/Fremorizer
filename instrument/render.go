@@ -70,9 +70,9 @@ func renderMarkers(frets int, opts RenderOpts) string {
 			sb.WriteString(cell)
 		}
 
-		// gap after fret set
+		// gap after fret set — 3 spaces to align with the closing | added in string rows
 		if opts.FretSetMode && i == opts.FretSetEnd {
-			sb.WriteString("  ")
+			sb.WriteString("   ")
 		}
 	}
 	return sb.String()
@@ -114,11 +114,16 @@ func renderStrings(strs []InstrumentString, opts RenderOpts) string {
 				sb.WriteString("  ")
 			}
 
+			// fret immediately after the set: drop its opening | (the set already has a closing |)
+			if opts.FretSetMode && fretIdx == opts.FretSetEnd+1 {
+				cell = strings.TrimPrefix(cell, "|")
+			}
+
 			sb.WriteString(cell)
 
-			// visual gap after fret set
+			// closing | for fret set + gap
 			if opts.FretSetMode && fretIdx == opts.FretSetEnd {
-				sb.WriteString("  ")
+				sb.WriteString(styleBlue.Render("|") + "  ")
 			}
 		}
 		sb.WriteString("|\n")
@@ -159,6 +164,9 @@ func renderCell(note Note, blink int, isCursor bool) string {
 	}
 
 	if note.Solved {
+		if isCursor {
+			return "|" + styleCursor.Render("-----")
+		}
 		return "|" + styleGreen.Render("-----")
 	}
 

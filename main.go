@@ -584,7 +584,7 @@ func (m model) viewPlaying() string {
 		opts.CursorFret = cf
 
 		sb.WriteString(instrument.Render(fsGame.GetInstrument(), opts))
-		sb.WriteString(fmt.Sprintf("\nNote to find: %s\n",
+		sb.WriteString(fmt.Sprintf("\nNote to find: %s\n\n",
 			styleTitle.Render(fsGame.GetTargetNote())))
 		if m.feedback != "" {
 			sb.WriteString(m.feedback + "\n")

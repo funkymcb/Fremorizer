@@ -37,6 +37,16 @@ func calculateNoteName(openNote string, fret int) (string, error) {
 	return noteOrder[(idx+fret)%12], nil
 }
 
+// IsValidNote returns true if the input is a recognised note name.
+func IsValidNote(input string) bool {
+	input = strings.TrimSpace(input)
+	if input == "" {
+		return false
+	}
+	_, ok := noteIndexMap[strings.ToUpper(input)]
+	return ok
+}
+
 // NoteMatches checks if an answer matches a note name (handles sharps/flats).
 func NoteMatches(noteName, answer string) bool {
 	if answer == "" {

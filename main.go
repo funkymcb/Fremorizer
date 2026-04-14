@@ -383,19 +383,34 @@ func (m model) updateSingleNoteMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.feedback = "All notes green — well done!"
 				return m, nil
 			}
-			m.feedback = "Find the note!"
+			m.feedback = "Find the note!\n"
 			return m, nil
 		}
 
 		input := strings.TrimSpace(m.textInput.Value())
+		if !instrument.IsValidNote(input) {
+			m.textInput.Reset()
+			return m, func() tea.Msg {
+				return gameFeedbackMsg{
+					text:    fmt.Sprintf("'%s' is not a valid note. Try: C, C#, Db, D, D#, Eb, E, F, F#, Gb, G, G#, Ab, A, A#, Bb, B\n", input),
+					correct: false,
+				}
+			}
+		}
 		if m.activeGame.CheckAnswer(input) {
 			noteName := snGame.CurrentNoteName()
 			snGame.RevealNote(true)
-			m.revealed = true
+			snGame.Next() //nolint
 			m.wrongGuesses = 0
+			m.textInput.Reset()
+			if snGame.IsGameOver() {
+				m.state = stateModeSelect
+				m.feedback = "All notes green — well done!"
+				return m, nil
+			}
 			return m, func() tea.Msg {
 				return gameFeedbackMsg{
-					text:    fmt.Sprintf("Correct! '%s' — press Enter to continue.", noteName),
+					text:    fmt.Sprintf("Correct! '%s' — find the next note!\n", noteName),
 					correct: true,
 				}
 			}
@@ -408,7 +423,7 @@ func (m model) updateSingleNoteMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.revealed = true
 			return m, func() tea.Msg {
 				return gameFeedbackMsg{
-					text:    fmt.Sprintf("The note was '%s' — press Enter to continue.", noteName),
+					text:    fmt.Sprintf("The note was '%s' — press Enter to continue.\n", noteName),
 					correct: false,
 				}
 			}
@@ -417,7 +432,7 @@ func (m model) updateSingleNoteMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		remaining := 3 - m.wrongGuesses
 		return m, func() tea.Msg {
 			return gameFeedbackMsg{
-				text:    fmt.Sprintf("Wrong! %d attempt(s) remaining.", remaining),
+				text:    fmt.Sprintf("Wrong! %d attempt(s) remaining.\n", remaining),
 				correct: false,
 			}
 		}

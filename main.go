@@ -364,37 +364,38 @@ func (m model) updateSingleNoteMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "ctrl+c":
 		return m, tea.Quit
 	case "esc":
-		// go back to mode select, reset instrument state
-		if snGame != nil {
-			// clear revealed note
-			snGame.Next() //nolint
-		}
 		m.state = stateModeSelect
 		m.feedback = ""
 		return m, nil
 	case "enter":
 		if m.revealed {
-			// already revealed, advance
+			// advance to next note; name disappears, color fill stays
 			if err := m.activeGame.Next(); err != nil {
 				m.feedback = fmt.Sprintf("Error: %v", err)
+				return m, nil
 			}
 			m.revealed = false
 			m.wrongGuesses = 0
-			m.feedback = "Find the note!"
 			m.textInput.Reset()
+
+			if snGame != nil && snGame.IsGameOver() {
+				m.state = stateModeSelect
+				m.feedback = "All notes green — well done!"
+				return m, nil
+			}
+			m.feedback = "Find the note!"
 			return m, nil
 		}
 
 		input := strings.TrimSpace(m.textInput.Value())
 		if m.activeGame.CheckAnswer(input) {
-			if snGame != nil {
-				snGame.RevealNote(true)
-			}
+			noteName := snGame.CurrentNoteName()
+			snGame.RevealNote(true)
 			m.revealed = true
 			m.wrongGuesses = 0
 			return m, func() tea.Msg {
 				return gameFeedbackMsg{
-					text:    fmt.Sprintf("Correct! The note was '%s'. Press Enter for next.", snGame.CurrentNoteName()),
+					text:    fmt.Sprintf("Correct! '%s' — press Enter to continue.", noteName),
 					correct: true,
 				}
 			}
@@ -402,15 +403,12 @@ func (m model) updateSingleNoteMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		m.wrongGuesses++
 		if m.wrongGuesses >= 3 {
-			noteName := ""
-			if snGame != nil {
-				noteName = snGame.CurrentNoteName()
-				snGame.RevealNote(false)
-			}
+			noteName := snGame.CurrentNoteName()
+			snGame.RevealNote(false)
 			m.revealed = true
 			return m, func() tea.Msg {
 				return gameFeedbackMsg{
-					text:    fmt.Sprintf("The note was '%s'. Press Enter for next.", noteName),
+					text:    fmt.Sprintf("The note was '%s' — press Enter to continue.", noteName),
 					correct: false,
 				}
 			}

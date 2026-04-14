@@ -117,26 +117,27 @@ func renderStrings(strs []InstrumentString, opts RenderOpts) string {
 
 func renderCell(note Note, blink int, isCursor bool) string {
 	if note.ToBeDetermined {
-		var inner string
-		if blink == 0 {
-			inner = "(?)"
-		} else {
-			inner = "(_)"
+		if note.Revealed {
+			// just-revealed: show note name in correct color before advancing
+			label := noteCellLabel(note.Name)
+			if note.Correct {
+				return "|" + styleGreen.Render(label)
+			}
+			return "|" + styleRed.Render(label)
 		}
-		return fmt.Sprintf("|-%s-", inner)
+		// unanswered: blink
+		if blink == 0 {
+			return "|-(?)-"
+		}
+		return "|-(_)-"
 	}
 
 	if note.Revealed {
-		var label string
-		if len(note.Name) == 1 {
-			label = fmt.Sprintf("--%s--", note.Name)
-		} else {
-			label = note.Name
-		}
+		// answered and moved on: colored fill, name hidden
 		if note.Correct {
-			return "|" + styleGreen.Render(label)
+			return "|" + styleGreen.Render("-----")
 		}
-		return "|" + styleRed.Render(label)
+		return "|" + styleRed.Render("-----")
 	}
 
 	if note.Marked {
@@ -152,4 +153,11 @@ func renderCell(note Note, blink int, isCursor bool) string {
 	}
 
 	return "|-----"
+}
+
+func noteCellLabel(name string) string {
+	if len(name) == 1 {
+		return fmt.Sprintf("--%s--", name)
+	}
+	return name
 }

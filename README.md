@@ -64,7 +64,10 @@ Pleas enter your guess: _
 
 In game mode 1 (1 note per string) the note to be determined will look like this '(?)' with a blinking questionmark.<br>
 Beneath this view you can type your guess. When guessed right the note will be shown in the layout with a green fill.<br>
-When guessed wrong three times the note will be shown as well but with a red fill.
+The note will disappear but the location will stay green.<br>
+When guessed wrong three times the note will be shown as well but with a red fill.<br>
+You will then cycle through all the notes until every note is green. The red notes you can try again after cycling through.<br>
+When all notes are green the game is over and you will be redirected to the initial game menu to choose a mode.
 
 ```text
 Blinking Note:

@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 # Declare the minimum permissions at workflow level; jobs narrow further where possible.
 permissions:
@@ -22,10 +22,10 @@ jobs:
       fail-fast: true
       matrix:
         include:
-          - { goos: linux,   goarch: amd64 }
-          - { goos: linux,   goarch: arm64 }
-          - { goos: darwin,  goarch: amd64 }
-          - { goos: darwin,  goarch: arm64 }
+          - { goos: linux, goarch: amd64 }
+          - { goos: linux, goarch: arm64 }
+          - { goos: darwin, goarch: amd64 }
+          - { goos: darwin, goarch: arm64 }
           - { goos: windows, goarch: amd64 }
 
     steps:
@@ -67,7 +67,7 @@ jobs:
             fremorizer-*.tar.gz
             fremorizer-*.zip
           if-no-files-found: error
-          retention-days: 1  # only needed until the release job picks them up
+          retention-days: 1 # only needed until the release job picks them up
 
   # ── 2. publish GitHub Release with all archives + checksums ─────────────────
   release:
@@ -76,7 +76,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: write  # required to create a release and upload assets
+      contents: write # required to create a release and upload assets
 
     steps:
       - name: Download all artifacts
@@ -93,7 +93,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          generate_release_notes: true  # auto-generates changelog from commits
+          generate_release_notes: true # auto-generates changelog from commits
 
   # ── 3. build and push Docker image to GHCR ──────────────────────────────────
   docker:
@@ -103,7 +103,7 @@ jobs:
 
     permissions:
       contents: read
-      packages: write  # required to push to ghcr.io
+      packages: write # required to push to ghcr.io
 
     steps:
       - uses: actions/checkout@v4
@@ -133,14 +133,4 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          provenance: false  # keeps image index simple for single-arch builds
-
-      - name: Make package public
-        run: |
-          gh api \
-            --method PATCH \
-            -H "Accept: application/vnd.github+json" \
-            /user/packages/container/fremorizer \
-            -f visibility=public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          provenance: false # keeps image index simple for single-arch builds

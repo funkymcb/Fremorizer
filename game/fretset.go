@@ -94,14 +94,74 @@ func (g *FretSetGameImpl) IsFretSetComplete() bool {
 // CheckAnswer is unused in fret-set mode.
 func (g *FretSetGameImpl) CheckAnswer(_ string) bool { return false }
 
+// HintInfo returns the number of correctly and incorrectly marked positions
+// for the current target note in the fret set.
+func (g *FretSetGameImpl) HintInfo() (correct, wrong int) {
+	for _, s := range g.inst.Strings {
+		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
+			note := s.Notes[fret]
+			if !note.Marked {
+				continue
+			}
+			if note.Name == g.targetNote {
+				correct++
+			} else {
+				wrong++
+			}
+		}
+	}
+	return
+}
+
+// Progress returns solved/total counts for the current fret set and the whole fretboard.
+func (g *FretSetGameImpl) Progress() (setCorrect, setTotal, boardCorrect, boardTotal int) {
+	for _, s := range g.inst.Strings {
+		for fret := 1; fret < len(s.Notes); fret++ {
+			boardTotal++
+			if s.Notes[fret].Solved {
+				boardCorrect++
+			}
+			if fret >= g.fretStart && fret <= g.fretEnd {
+				setTotal++
+				if s.Notes[fret].Solved {
+					setCorrect++
+				}
+			}
+		}
+	}
+	return
+}
+
+// IsBoardComplete returns true if the entire fretboard would be solved after
+// the current note's positions are marked. Call this before Next().
+func (g *FretSetGameImpl) IsBoardComplete() bool {
+	for _, s := range g.inst.Strings {
+		for fret := 1; fret < len(s.Notes); fret++ {
+			if s.Notes[fret].Solved {
+				continue
+			}
+			// not yet solved — it's OK only if it's the current target in the fret set
+			if fret < g.fretStart || fret > g.fretEnd || s.Notes[fret].Name != g.targetNote {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // Next solves the current target note's positions, then either picks the next
 // note in the fret set or advances to the next fret set if all positions are done.
 func (g *FretSetGameImpl) Next() error {
 	g.solveCurrentNote()
 
 	if g.isFretSetFullySolved() {
-		g.clearFretSet()
-		g.advanceFretSet()
+		g.clearFretSet() // clears Marked only; Solved is preserved for fretboard progress
+		if g.isBoardFullySolved() {
+			g.resetBoard()
+			g.initFretSet()
+		} else {
+			g.advanceFretSet()
+		}
 	}
 
 	g.pickNextNote()
@@ -133,9 +193,30 @@ func (g *FretSetGameImpl) isFretSetFullySolved() bool {
 	return true
 }
 
+// clearFretSet clears player marks from the current fret set.
+// Solved state is intentionally preserved for fretboard-level progress tracking.
 func (g *FretSetGameImpl) clearFretSet() {
 	for si := range g.inst.Strings {
 		for fret := g.fretStart; fret <= g.fretEnd; fret++ {
+			g.inst.Strings[si].Notes[fret].Marked = false
+		}
+	}
+}
+
+func (g *FretSetGameImpl) isBoardFullySolved() bool {
+	for _, s := range g.inst.Strings {
+		for fret := 1; fret < len(s.Notes); fret++ {
+			if !s.Notes[fret].Solved {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func (g *FretSetGameImpl) resetBoard() {
+	for si := range g.inst.Strings {
+		for fret := 1; fret < len(g.inst.Strings[si].Notes); fret++ {
 			g.inst.Strings[si].Notes[fret].Solved = false
 			g.inst.Strings[si].Notes[fret].Marked = false
 		}
@@ -159,7 +240,13 @@ func (g *FretSetGameImpl) advanceFretSet() {
 		}
 		g.fretStart = next
 	} else {
-		g.fretStart = g.randomStart()
+		// keep picking until we land on a set with at least one unsolved position
+		for {
+			g.fretStart = g.randomStart()
+			if !g.isFretSetFullySolved() {
+				break
+			}
+		}
 	}
 	g.fretEnd = g.fretStart + 2
 }

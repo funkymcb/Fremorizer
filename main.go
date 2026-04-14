@@ -456,8 +456,11 @@ func (m model) updateFretSetMode(msg tea.KeyMsg, fsGame *game.FretSetGameImpl) (
 		if fsGame.IsComplete() {
 			prevNote := fsGame.GetTargetNote()
 			fretSetDone := fsGame.IsFretSetComplete()
+			boardDone := fsGame.IsBoardComplete()
 			if err := fsGame.Next(); err != nil {
 				m.feedback = fmt.Sprintf("Error: %v", err)
+			} else if boardDone {
+				m.feedback = fmt.Sprintf("Fretboard complete! Starting over — find '%s'.", fsGame.GetTargetNote())
 			} else if fretSetDone {
 				m.feedback = fmt.Sprintf("Fret set complete! Now find '%s'.", fsGame.GetTargetNote())
 			} else {
@@ -587,8 +590,20 @@ func (m model) viewPlaying() string {
 		sb.WriteString(fmt.Sprintf("\nNote to find: %s\n\n",
 			styleTitle.Render(fsGame.GetTargetNote())))
 		if m.feedback != "" {
-			sb.WriteString(m.feedback + "\n")
+			sb.WriteString(m.feedback + "\n\n")
 		}
+		if hintCorrect, hintWrong := fsGame.HintInfo(); hintWrong > 0 && hintCorrect+hintWrong >= 2 {
+			var hint string
+			if hintCorrect > 0 {
+				hint = fmt.Sprintf("Hint: %d correct mark(s) but %d wrong — remove the wrong ones.", hintCorrect, hintWrong)
+			} else {
+				hint = "Hint: None of your marks are correct yet."
+			}
+			sb.WriteString(styleError.Render(hint) + "\n\n")
+		}
+		setCorrect, setTotal, boardCorrect, boardTotal := fsGame.Progress()
+		sb.WriteString(renderProgressBar(setCorrect, setTotal, 30) + " Fret set\n")
+		sb.WriteString(renderProgressBar(boardCorrect, boardTotal, 30) + " Fretboard\n\n")
 		sb.WriteString(styleHint.Render("hjkl/arrows: move  Space/Enter: mark  Esc: back"))
 	} else {
 		sb.WriteString(instrument.Render(m.activeGame.GetInstrument(), opts))

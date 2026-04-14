@@ -33,13 +33,13 @@ func NewFretSetGame(inst *instrument.Instrument, sequential bool) *FretSetGameIm
 }
 
 func (g *FretSetGameImpl) GetInstrument() *instrument.Instrument { return g.inst }
-func (g *FretSetGameImpl) GetTargetNote() string                  { return g.targetNote }
-func (g *FretSetGameImpl) GetFretSetBounds() (int, int)           { return g.fretStart, g.fretEnd }
-func (g *FretSetGameImpl) GetCursor() (int, int)                  { return g.cursorString, g.cursorFret }
+func (g *FretSetGameImpl) GetTargetNote() string                 { return g.targetNote }
+func (g *FretSetGameImpl) GetFretSetBounds() (int, int)          { return g.fretStart, g.fretEnd }
+func (g *FretSetGameImpl) GetCursor() (int, int)                 { return g.cursorString, g.cursorFret }
 
 func (g *FretSetGameImpl) MoveCursor(ds, df int) {
 	n := len(g.inst.Strings)
-	g.cursorString = ((g.cursorString + ds) % n + n) % n
+	g.cursorString = ((g.cursorString+ds)%n + n) % n
 	w := g.fretEnd - g.fretStart + 1
 	g.cursorFret = g.fretStart + ((g.cursorFret-g.fretStart+df)%w+w)%w
 }
@@ -110,7 +110,7 @@ func (g *FretSetGameImpl) HintInfo() (correct, wrong int) {
 			}
 		}
 	}
-	return
+	return correct, wrong
 }
 
 // Progress returns solved/total counts for the current fret set and the whole fretboard.
@@ -129,7 +129,7 @@ func (g *FretSetGameImpl) Progress() (setCorrect, setTotal, boardCorrect, boardT
 			}
 		}
 	}
-	return
+	return setCorrect, setTotal, boardCorrect, boardTotal
 }
 
 // IsBoardComplete returns true if the entire fretboard would be solved after

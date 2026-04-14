@@ -37,7 +37,7 @@ const (
 type optItem int
 
 const (
-	optItemInstrument      optItem = iota
+	optItemInstrument optItem = iota
 	optItemStrings
 	optItemTuning
 	optItemFrets
@@ -825,7 +825,7 @@ func chordDifficultyLabel(d string) string {
 	case "hard":
 		return "hard (coming soon)"
 	default:
-		return "easy"
+		return "easy (basic CAGED major/minor)"
 	}
 }
 

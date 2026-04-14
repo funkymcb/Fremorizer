@@ -26,9 +26,9 @@ type noteSpec struct {
 // cagedShape defines one of the 10 CAGED shapes (5 major + 5 minor).
 // notes[i] corresponds to Strings[i] in the Instrument (index 0 = high E for 6-string guitar).
 type cagedShape struct {
-	name       string     // "E", "A", "G", "C", "D"
+	name       string // "E", "A", "G", "C", "D"
 	isMajor    bool
-	rootString int        // display index of the root string (0=high E, 5=low E for 6-string)
+	rootString int // display index of the root string (0=high E, 5=low E for 6-string)
 	notes      [6]noteSpec
 }
 
@@ -40,23 +40,23 @@ func allCAGEDShapes() []cagedShape {
 		{
 			name: "E", isMajor: true, rootString: 5,
 			notes: [6]noteSpec{
-				{0, "1"},  // high E
-				{0, "5"},  // B
-				{1, "3"},  // G
-				{2, "1"},  // D
-				{2, "5"},  // A
-				{0, "1"},  // low E  ← root
+				{0, "1"}, // high E
+				{0, "5"}, // B
+				{1, "3"}, // G
+				{2, "1"}, // D
+				{2, "5"}, // A
+				{0, "1"}, // low E  ← root
 			},
 		},
 		{
 			name: "A", isMajor: true, rootString: 4,
 			notes: [6]noteSpec{
-				{0, "5"},  // high E
-				{2, "3"},  // B
-				{2, "1"},  // G
-				{2, "5"},  // D
-				{0, "1"},  // A  ← root
-				{0, "x"},  // low E  muted
+				{0, "5"}, // high E
+				{2, "3"}, // B
+				{2, "1"}, // G
+				{2, "5"}, // D
+				{0, "1"}, // A  ← root
+				{0, "x"}, // low E  muted
 			},
 		},
 		{
@@ -84,12 +84,12 @@ func allCAGEDShapes() []cagedShape {
 		{
 			name: "D", isMajor: true, rootString: 3,
 			notes: [6]noteSpec{
-				{2, "3"},  // high E
-				{3, "1"},  // B
-				{2, "5"},  // G
-				{0, "1"},  // D  ← root
-				{0, "x"},  // A  muted
-				{0, "x"},  // low E  muted
+				{2, "3"}, // high E
+				{3, "1"}, // B
+				{2, "5"}, // G
+				{0, "1"}, // D  ← root
+				{0, "x"}, // A  muted
+				{0, "x"}, // low E  muted
 			},
 		},
 
@@ -97,23 +97,23 @@ func allCAGEDShapes() []cagedShape {
 		{
 			name: "E", isMajor: false, rootString: 5,
 			notes: [6]noteSpec{
-				{0, "1"},   // high E
-				{0, "5"},   // B
-				{0, "b3"},  // G  (one fret lower than major's +1)
-				{2, "1"},   // D
-				{2, "5"},   // A
-				{0, "1"},   // low E  ← root
+				{0, "1"},  // high E
+				{0, "5"},  // B
+				{0, "b3"}, // G  (one fret lower than major's +1)
+				{2, "1"},  // D
+				{2, "5"},  // A
+				{0, "1"},  // low E  ← root
 			},
 		},
 		{
 			name: "A", isMajor: false, rootString: 4,
 			notes: [6]noteSpec{
-				{0, "5"},   // high E
-				{1, "b3"},  // B  (one fret lower than major's +2)
-				{2, "1"},   // G
-				{2, "5"},   // D
-				{0, "1"},   // A  ← root
-				{0, "x"},   // low E  muted
+				{0, "5"},  // high E
+				{1, "b3"}, // B  (one fret lower than major's +2)
+				{2, "1"},  // G
+				{2, "5"},  // D
+				{0, "1"},  // A  ← root
+				{0, "x"},  // low E  muted
 			},
 		},
 		{
@@ -141,12 +141,12 @@ func allCAGEDShapes() []cagedShape {
 		{
 			name: "D", isMajor: false, rootString: 3,
 			notes: [6]noteSpec{
-				{1, "b3"},  // high E  (one fret lower than major's +2)
-				{3, "1"},   // B
-				{2, "5"},   // G
-				{0, "1"},   // D  ← root
-				{0, "x"},   // A  muted
-				{0, "x"},   // low E  muted
+				{1, "b3"}, // high E  (one fret lower than major's +2)
+				{3, "1"},  // B
+				{2, "5"},  // G
+				{0, "1"},  // D  ← root
+				{0, "x"},  // A  muted
+				{0, "x"},  // low E  muted
 			},
 		},
 	}
@@ -163,7 +163,7 @@ type chordInterval struct {
 // ChordsGame implements Game for chord-identification mode (mode 3).
 type ChordsGame struct {
 	inst       *instrument.Instrument
-	rootNote   string          // canonical name, e.g., "G" or "C#/Db"
+	rootNote   string // canonical name, e.g., "G" or "C#/Db"
 	isMajor    bool
 	intervals  []chordInterval // [root, third/b3, fifth]
 	currentIdx int
@@ -353,7 +353,7 @@ func (g *ChordsGame) clearChord() {
 // Returns the root note string (may have sharps/flats), whether it is minor, and ok.
 func parseChordInput(input string) (root string, minor bool, ok bool) {
 	if input == "" {
-		return
+		return root, minor, ok
 	}
 	lower := strings.ToLower(input)
 
@@ -373,7 +373,7 @@ func parseChordInput(input string) (root string, minor bool, ok bool) {
 			candidate := input[:len(input)-1]
 			if instrument.IsValidNote(candidate) {
 				root, minor, ok = candidate, true, true
-				return
+				return root, minor, ok
 			}
 		}
 		// Trailing capital "M" for explicit major.
@@ -381,7 +381,7 @@ func parseChordInput(input string) (root string, minor bool, ok bool) {
 			candidate := input[:len(input)-1]
 			if instrument.IsValidNote(candidate) {
 				root, ok = candidate, true
-				return
+				return root, minor, ok
 			}
 		}
 		// Plain note name (major).
@@ -391,5 +391,5 @@ func parseChordInput(input string) (root string, minor bool, ok bool) {
 	if ok && root != "" {
 		ok = instrument.IsValidNote(root)
 	}
-	return
+	return root, minor, ok
 }

@@ -10,10 +10,12 @@ type Note struct {
 	Hidden         bool
 	ToBeDetermined bool
 	Marked         bool // mode 2: player marked this position
-	Solved         bool // mode 2: this position was correctly found and is now green
+	Solved         bool // mode 2/3: correctly found, shown in green
 	Revealed       bool // mode 1: show after answer
 	Correct        bool // mode 1: was the answer correct
 	WasMissed      bool // mode 1: note was previously guessed wrong, show red (?)
+	Interval       string // mode 3: chord interval label ("1","3","5","b3"), empty if not in chord
+	Muted          bool   // mode 3: this string is muted/not played (only meaningful on Notes[0])
 }
 
 var noteOrder = []string{

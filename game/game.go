@@ -36,6 +36,18 @@ func New(mode string, inst *instrument.Instrument, opts map[string]any) (Game, e
 	case "fretset":
 		sequential, _ := opts["sequential"].(bool)
 		return NewFretSetGame(inst, sequential), nil
+	case "chords":
+		difficulty, _ := opts["difficulty"].(string)
+		if difficulty != "easy" {
+			return nil, fmt.Errorf("%s difficulty is coming soon — only 'easy' is available", difficulty)
+		}
+		if inst.Type != "guitar" {
+			return nil, fmt.Errorf("chord mode requires a guitar (CAGED system)")
+		}
+		if len(inst.Strings) < 6 {
+			return nil, fmt.Errorf("chord mode requires at least 6 strings")
+		}
+		return NewChordsGame(inst), nil
 	default:
 		return nil, fmt.Errorf("unknown game mode: %s", mode)
 	}

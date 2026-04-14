@@ -37,11 +37,12 @@ const (
 type optItem int
 
 const (
-	optItemInstrument optItem = iota
+	optItemInstrument      optItem = iota
 	optItemStrings
 	optItemTuning
 	optItemFrets
 	optItemFretSetMode
+	optItemChordDifficulty
 	optItemBack
 	optItemCount
 )
@@ -76,6 +77,7 @@ type model struct {
 	tuning            []string
 	frets             int
 	fretSetSequential bool
+	chordDifficulty   string // "easy", "medium", "hard"
 
 	// active game
 	selectedMode int
@@ -108,6 +110,7 @@ func initialModel() model {
 		tuning:            instrument.DefaultGuitarTuning(6),
 		frets:             12,
 		fretSetSequential: true,
+		chordDifficulty:   "easy",
 		textInput:         ti,
 		tuneInput:         tuneInput,
 	}
@@ -177,12 +180,7 @@ func (m model) updateModeSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	case "enter", " ":
 		m.selectedMode = m.modeCursor
-		selected := modes[m.modeCursor]
-		if selected == "chords" {
-			m.feedback = "Game mode 3 (chords) is coming soon!"
-			return m, nil
-		}
-		return m.startGame(selected)
+		return m.startGame(modes[m.modeCursor])
 	}
 
 	return m, nil
@@ -206,7 +204,10 @@ func (m model) startGame(mode string) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	g, err := game.New(mode, inst, map[string]any{"sequential": m.fretSetSequential})
+	g, err := game.New(mode, inst, map[string]any{
+		"sequential": m.fretSetSequential,
+		"difficulty": m.chordDifficulty,
+	})
 	if err != nil {
 		m.feedback = fmt.Sprintf("Error: %v", err)
 		return m, nil
@@ -256,6 +257,8 @@ func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case optItemFretSetMode:
 			m.fretSetSequential = !m.fretSetSequential
+		case optItemChordDifficulty:
+			m.chordDifficulty = nextChordDifficulty(m.chordDifficulty)
 		case optItemBack:
 			m.state = stateModeSelect
 		}
@@ -275,6 +278,8 @@ func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			}
 		case optItemFretSetMode:
 			m.fretSetSequential = !m.fretSetSequential
+		case optItemChordDifficulty:
+			m.chordDifficulty = prevChordDifficulty(m.chordDifficulty)
 		}
 	}
 
@@ -341,9 +346,11 @@ func (m model) updateTuning(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updatePlaying(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	// check if this is fret set mode
 	if fsGame, ok := m.activeGame.(*game.FretSetGameImpl); ok {
 		return m.updateFretSetMode(msg, fsGame)
+	}
+	if cgGame, ok := m.activeGame.(*game.ChordsGame); ok {
+		return m.updateChordsMode(msg, cgGame)
 	}
 	return m.updateSingleNoteMode(msg)
 }
@@ -472,6 +479,58 @@ func (m model) updateFretSetMode(msg tea.KeyMsg, fsGame *game.FretSetGameImpl) (
 	return m, nil
 }
 
+func (m model) updateChordsMode(msg tea.KeyMsg, cg *game.ChordsGame) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		return m, tea.Quit
+	case "esc":
+		m.state = stateModeSelect
+		m.feedback = ""
+		return m, nil
+	case "enter":
+		if cg.Phase() == game.ChordPhaseComplete {
+			cg.Next() //nolint
+			m.feedback = ""
+			m.textInput.Reset()
+			return m, nil
+		}
+
+		input := strings.TrimSpace(m.textInput.Value())
+		if input == "" {
+			return m, nil
+		}
+
+		if cg.CheckAnswer(input) {
+			prevPhase := cg.Phase()
+			cg.Next() //nolint
+			m.textInput.Reset()
+			switch {
+			case prevPhase == game.ChordPhaseNaming:
+				m.feedback = fmt.Sprintf("Correct! Now identify the intervals of %s.", cg.ChordDisplayName())
+				m.feedbackOK = true
+			case cg.Phase() == game.ChordPhaseComplete:
+				m.feedback = ""
+			default:
+				m.feedback = "Correct!"
+				m.feedbackOK = true
+			}
+		} else {
+			m.textInput.Reset()
+			if cg.Phase() == game.ChordPhaseNaming {
+				m.feedback = "Incorrect chord name. Try again!"
+			} else {
+				m.feedback = "Incorrect note. Try again!"
+			}
+			m.feedbackOK = false
+		}
+		return m, nil
+	}
+
+	var cmd tea.Cmd
+	m.textInput, cmd = m.textInput.Update(msg)
+	return m, cmd
+}
+
 // ── view ──────────────────────────────────────────────────────────────────────
 
 func (m model) View() string {
@@ -496,7 +555,7 @@ func (m model) viewModeSelect() string {
 	modes := []string{
 		"1. Guess a random note (per string)",
 		"2. Find notes in a set of 3 frets",
-		"3. Chord notes (coming soon)",
+		"3. Identify chord notes (CAGED system)",
 	}
 	for i, mode := range modes {
 		if i == m.modeCursor {
@@ -522,12 +581,14 @@ func (m model) viewOptions() string {
 	if m.fretSetSequential {
 		fretSetModeLabel = "sequential (fret 1 → 24)"
 	}
+	chordDiffLabel := chordDifficultyLabel(m.chordDifficulty)
 	labels := []string{
 		fmt.Sprintf("Instrument:      %s", m.instrType),
 		fmt.Sprintf("Strings:         %d  (range: %d-%d)", m.numStrings, minStrings(m.instrType), maxStrings(m.instrType)),
 		fmt.Sprintf("Tuning:          %s", strings.Join(m.tuning, "-")),
 		fmt.Sprintf("Frets:           %d  (range: 12-24)", m.frets),
 		fmt.Sprintf("Fret set mode:   %s", fretSetModeLabel),
+		fmt.Sprintf("Chord mode:      %s", chordDiffLabel),
 		"Back",
 	}
 
@@ -577,6 +638,10 @@ func (m model) viewPlaying() string {
 
 	opts := instrument.RenderOpts{Blink: m.blink}
 
+	if cgGame, ok := m.activeGame.(*game.ChordsGame); ok {
+		return m.viewChordsMode(cgGame, opts)
+	}
+
 	if fsGame, ok := m.activeGame.(*game.FretSetGameImpl); ok {
 		start, end := fsGame.GetFretSetBounds()
 		cs, cf := fsGame.GetCursor()
@@ -625,6 +690,39 @@ func (m model) viewPlaying() string {
 		sb.WriteString(styleHint.Render("Type note name and press Enter  Esc: back"))
 	}
 
+	return sb.String()
+}
+
+func (m model) viewChordsMode(cg *game.ChordsGame, opts instrument.RenderOpts) string {
+	var sb strings.Builder
+
+	opts.ChordMode = true
+	sb.WriteString(instrument.Render(cg.GetInstrument(), opts))
+	sb.WriteString("\n")
+
+	switch cg.Phase() {
+	case game.ChordPhaseNaming:
+		sb.WriteString("Which chord is this? ")
+		sb.WriteString(m.textInput.View() + "\n")
+	case game.ChordPhaseIntervals:
+		sb.WriteString(fmt.Sprintf("Chord: %s\n", styleTitle.Render(cg.ChordDisplayName())))
+		sb.WriteString(cg.CurrentIntervalPrompt() + " ")
+		sb.WriteString(m.textInput.View() + "\n")
+	case game.ChordPhaseComplete:
+		sb.WriteString(fmt.Sprintf("Chord: %s\n", styleTitle.Render(cg.ChordDisplayName())))
+		sb.WriteString(styleSuccess.Render("All intervals found! Press Enter for next chord.") + "\n")
+	}
+
+	if m.feedback != "" {
+		if m.feedbackOK {
+			sb.WriteString(styleSuccess.Render(m.feedback) + "\n")
+		} else {
+			sb.WriteString(styleError.Render(m.feedback) + "\n")
+		}
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(styleHint.Render("Type answer and press Enter  Esc: back"))
 	return sb.String()
 }
 
@@ -695,6 +793,39 @@ func maxStrings(instrType string) int {
 		return 4
 	default:
 		return 8
+	}
+}
+
+func nextChordDifficulty(cur string) string {
+	switch cur {
+	case "easy":
+		return "medium"
+	case "medium":
+		return "hard"
+	default:
+		return "easy"
+	}
+}
+
+func prevChordDifficulty(cur string) string {
+	switch cur {
+	case "hard":
+		return "medium"
+	case "medium":
+		return "easy"
+	default:
+		return "hard"
+	}
+}
+
+func chordDifficultyLabel(d string) string {
+	switch d {
+	case "medium":
+		return "medium (coming soon)"
+	case "hard":
+		return "hard (coming soon)"
+	default:
+		return "easy"
 	}
 }
 

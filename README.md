@@ -2,6 +2,41 @@
 
 TUI written in go to help you memorize the guitar fretboard utilizing [bubbletea](https://github.com/charmbracelet/bubbletea) TUI framework<br>
 
+## Installation
+
+### Homebrew / Go install / Binary
+
+**Using `go install`** (requires Go 1.25+):
+```bash
+go install github.com/funkymcb/fremorizer@latest
+```
+
+**Download a pre-built binary**
+
+Grab the latest release for your platform from the [releases page](https://github.com/funkymcb/fremorizer/releases), extract the archive and move the binary to a directory on your `PATH`:
+
+```bash
+# Example for Linux amd64
+tar -xzf fremorizer-<version>-linux-amd64.tar.gz
+mv fremorizer /usr/local/bin/
+```
+
+**Docker**
+
+```bash
+docker pull ghcr.io/funkymcb/fremorizer:latest
+docker run -it --rm ghcr.io/funkymcb/fremorizer:latest
+```
+
+**Build from source**
+
+```bash
+git clone https://github.com/funkymcb/fremorizer.git
+cd fremorizer
+go build -o fremorizer .
+./fremorizer
+```
+
 ## Structure
 
 ### Choose game mode

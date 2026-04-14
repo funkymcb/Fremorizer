@@ -40,6 +40,7 @@ func (g *SingleNoteGame) RevealNote(correct bool) {
 	n.Revealed = true
 	n.Correct = correct
 	if !correct {
+		n.WasMissed = true
 		g.retryQueue = append(g.retryQueue, g.cur)
 	}
 }
@@ -68,6 +69,19 @@ func (g *SingleNoteGame) IsGameOver() bool {
 	return true
 }
 
+// Progress returns the number of correctly guessed notes and the total to guess.
+func (g *SingleNoteGame) Progress() (correct, total int) {
+	for _, s := range g.inst.Strings {
+		for i := 1; i < len(s.Notes); i++ { // skip open string
+			total++
+			if s.Notes[i].Correct {
+				correct++
+			}
+		}
+	}
+	return
+}
+
 // CurrentNoteName returns the name of the note currently being asked.
 func (g *SingleNoteGame) CurrentNoteName() string {
 	return g.inst.Strings[g.cur.s].Notes[g.cur.n].Name
@@ -80,13 +94,15 @@ func (g *SingleNoteGame) advance() {
 		if len(g.retryQueue) == 0 {
 			return // game over
 		}
-		// shuffle retries and restart with them
 		g.queue = shuffle(g.retryQueue)
 		g.retryQueue = nil
 	}
 	g.cur = g.queue[0]
 	g.queue = g.queue[1:]
-	g.inst.Strings[g.cur.s].Notes[g.cur.n].ToBeDetermined = true
+	n := &g.inst.Strings[g.cur.s].Notes[g.cur.n]
+	// clear Revealed so the note shows as blinking (?) instead of its name
+	n.Revealed = false
+	n.ToBeDetermined = true
 }
 
 func (g *SingleNoteGame) buildQueue() []notePos {

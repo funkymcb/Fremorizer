@@ -586,12 +586,27 @@ func (m model) viewPlaying() string {
 				sb.WriteString(styleError.Render(m.feedback) + "\n")
 			}
 		} else {
-			sb.WriteString("Find the note!\n")
+			sb.WriteString("Find the note!\n\n")
 		}
-		sb.WriteString("\n" + styleHint.Render("Type note name and press Enter  Esc: back"))
+		if snGame, ok := m.activeGame.(*game.SingleNoteGame); ok {
+			correct, total := snGame.Progress()
+			sb.WriteString(renderProgressBar(correct, total, 30) + "\n\n")
+		}
+		sb.WriteString(styleHint.Render("Type note name and press Enter  Esc: back"))
 	}
 
 	return sb.String()
+}
+
+func renderProgressBar(correct, total, width int) string {
+	if total == 0 {
+		return ""
+	}
+	filled := correct * width / total
+	pct := correct * 100 / total
+	green := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	bar := green.Render(strings.Repeat("█", filled)) + strings.Repeat("░", width-filled)
+	return fmt.Sprintf("Progress: [%s] %d%% (%d/%d)", bar, pct, correct, total)
 }
 
 // ── helpers ───────────────────────────────────────────────────────────────────

@@ -12,6 +12,7 @@ type Note struct {
 	Marked         bool // mode 2: player marked this position
 	Revealed       bool // mode 1: show after answer
 	Correct        bool // mode 1: was the answer correct
+	WasMissed      bool // mode 1: note was previously guessed wrong, show red (?)
 }
 
 var noteOrder = []string{

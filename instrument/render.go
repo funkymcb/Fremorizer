@@ -127,11 +127,17 @@ func renderCell(note Note, blink int, isCursor bool) string {
 			}
 			return "|" + styleRed.Render(label)
 		}
-		// unanswered: blink
+		// unanswered: blink — red if this note was previously missed
+		var inner string
 		if blink == 0 {
-			return "|-(?)-"
+			inner = "|-(?)-"
+		} else {
+			inner = "|-(_)-"
 		}
-		return "|-(_)-"
+		if note.WasMissed {
+			return styleRed.Render(inner)
+		}
+		return inner
 	}
 
 	if note.Revealed {

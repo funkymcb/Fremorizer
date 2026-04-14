@@ -40,21 +40,23 @@ func Render(inst *Instrument, opts RenderOpts) string {
 
 func renderMarkers(frets int, opts RenderOpts) string {
 	var sb strings.Builder
-	sb.WriteString("  ") // align with string name prefix
+	sb.WriteString("  ") // align with string name prefix (2 chars, same as open-note label)
+
+	markerFrets := map[int]bool{
+		1: true, 3: true, 5: true, 7: true, 9: true,
+		12: true, 15: true, 17: true, 19: true, 21: true, 24: true,
+	}
 
 	for i := 1; i <= frets; i++ {
-		cell := "     "
-		switch i {
-		case 1, 3, 5, 7, 9, 15, 17, 19, 24:
-			cell = fmt.Sprintf("  %-3d ", i)
-		case 12, 21:
-			cell = fmt.Sprintf("  %-3d  ", i)
-		default:
-			if i < 10 {
-				cell = "      "
-			} else {
-				cell = "     "
-			}
+		var cell string
+		if markerFrets[i] {
+			// center the number within the 5-dash content area of a 6-char cell (|-----)
+			s := fmt.Sprintf("%d", i)
+			left := 1 + (5-len(s))/2
+			right := 6 - len(s) - left
+			cell = strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
+		} else {
+			cell = "      " // 6 spaces — one per fret cell char
 		}
 
 		if opts.FretSetMode && i >= opts.FretSetStart && i <= opts.FretSetEnd {

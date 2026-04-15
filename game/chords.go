@@ -162,20 +162,31 @@ type chordInterval struct {
 
 // ChordsGame implements Game for chord-identification mode (mode 3).
 type ChordsGame struct {
-	inst       *instrument.Instrument
-	rootNote   string // canonical name, e.g., "G" or "C#/Db"
-	isMajor    bool
-	intervals  []chordInterval // [root, third/b3, fifth]
-	currentIdx int
-	phase      int // ChordPhaseNaming / ChordPhaseIntervals / ChordPhaseComplete
+	inst            *instrument.Instrument
+	rootNote        string          // canonical name, e.g., "G" or "C#/Db"
+	isMajor         bool
+	intervals       []chordInterval // [root, third/b3, fifth]
+	currentIdx      int
+	phase           int // ChordPhaseNaming / ChordPhaseIntervals / ChordPhaseComplete
+	chordsCompleted int
+	chordsRequired  int
 }
 
 // NewChordsGame creates a chord game for the given instrument (must be 6-string guitar).
-func NewChordsGame(inst *instrument.Instrument) *ChordsGame {
-	g := &ChordsGame{inst: inst}
+func NewChordsGame(inst *instrument.Instrument, chordsRequired int) *ChordsGame {
+	if chordsRequired < 1 {
+		chordsRequired = 20
+	}
+	g := &ChordsGame{inst: inst, chordsRequired: chordsRequired}
 	g.pickNewChord()
 	return g
 }
+
+// Progress returns the number of chords completed and the total required.
+func (g *ChordsGame) Progress() (int, int) { return g.chordsCompleted, g.chordsRequired }
+
+// IsGameOver returns true when all required chords have been completed.
+func (g *ChordsGame) IsGameOver() bool { return g.chordsCompleted >= g.chordsRequired }
 
 // ── Game interface ─────────────────────────────────────────────────────────────
 
@@ -216,7 +227,10 @@ func (g *ChordsGame) Next() error {
 			g.phase = ChordPhaseComplete
 		}
 	case ChordPhaseComplete:
-		g.pickNewChord()
+		g.chordsCompleted++
+		if !g.IsGameOver() {
+			g.pickNewChord()
+		}
 	}
 	return nil
 }

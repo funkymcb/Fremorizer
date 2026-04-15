@@ -47,7 +47,8 @@ func New(mode string, inst *instrument.Instrument, opts map[string]any) (Game, e
 		if len(inst.Strings) < 6 {
 			return nil, fmt.Errorf("chord mode requires at least 6 strings")
 		}
-		return NewChordsGame(inst), nil
+		chordCount, _ := opts["chordCount"].(int)
+		return NewChordsGame(inst, chordCount), nil
 	default:
 		return nil, fmt.Errorf("unknown game mode: %s", mode)
 	}

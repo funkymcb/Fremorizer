@@ -50,6 +50,7 @@ const (
 	optItemFrets
 	optItemFretSetMode
 	optItemChordDifficulty
+	optItemChordCount
 	optItemBack
 	optItemCount
 )
@@ -85,6 +86,7 @@ type model struct {
 	frets             int
 	fretSetSequential bool
 	chordDifficulty   string // "easy", "medium", "hard"
+	chordCount        int    // number of chords to find per session
 
 	// active game
 	selectedMode  int
@@ -119,6 +121,7 @@ func initialModel() model {
 		frets:             12,
 		fretSetSequential: true,
 		chordDifficulty:   "easy",
+		chordCount:        20,
 		textInput:         ti,
 		tuneInput:         tuneInput,
 	}
@@ -215,6 +218,7 @@ func (m model) startGame(mode string) (tea.Model, tea.Cmd) {
 	g, err := game.New(mode, inst, map[string]any{
 		"sequential": m.fretSetSequential,
 		"difficulty": m.chordDifficulty,
+		"chordCount": m.chordCount,
 	})
 	if err != nil {
 		m.feedback = fmt.Sprintf("Error: %v", err)
@@ -268,6 +272,10 @@ func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.fretSetSequential = !m.fretSetSequential
 		case optItemChordDifficulty:
 			m.chordDifficulty = nextChordDifficulty(m.chordDifficulty)
+		case optItemChordCount:
+			if m.chordCount < 99 {
+				m.chordCount++
+			}
 		case optItemBack:
 			m.state = stateModeSelect
 		}
@@ -289,6 +297,10 @@ func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.fretSetSequential = !m.fretSetSequential
 		case optItemChordDifficulty:
 			m.chordDifficulty = prevChordDifficulty(m.chordDifficulty)
+		case optItemChordCount:
+			if m.chordCount > 1 {
+				m.chordCount--
+			}
 		}
 	}
 
@@ -510,6 +522,16 @@ func (m model) updateChordsMode(msg tea.KeyMsg, cg *game.ChordsGame) (tea.Model,
 	case "enter":
 		if cg.Phase() == game.ChordPhaseComplete {
 			cg.Next() //nolint
+			if cg.IsGameOver() {
+				elapsed := time.Since(m.gameStartTime)
+				_, total := cg.Progress()
+				avg := elapsed.Seconds() / math.Max(1, float64(total))
+				m.state = stateModeSelect
+				m.feedback = fmt.Sprintf("All %d chords found — well done! Time: %s | Avg: %.1fs per chord",
+					total, formatDuration(elapsed), avg)
+				m.feedbackOK = true
+				return m, nil
+			}
 			m.feedback = ""
 			m.textInput.Reset()
 			return m, nil
@@ -613,6 +635,7 @@ func (m model) viewOptions() string {
 		fmt.Sprintf("Frets:           %d  (range: 12-24)", m.frets),
 		fmt.Sprintf("Fret set mode:   %s", fretSetModeLabel),
 		fmt.Sprintf("Chord mode:      %s", chordDiffLabel),
+		fmt.Sprintf("Chord count:     %d  (range: 1-99)", m.chordCount),
 		"Back",
 	}
 
@@ -747,7 +770,9 @@ func (m model) viewChordsMode(cg *game.ChordsGame, opts instrument.RenderOpts) s
 		}
 	}
 
-	sb.WriteString("\n")
+	completed, total := cg.Progress()
+	sb.WriteString(renderProgressBar(completed, total, 30) + "\n")
+	sb.WriteString(styleHint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
 	sb.WriteString(styleHint.Render("Type answer and press Enter  Esc: back"))
 	return sb.String()
 }

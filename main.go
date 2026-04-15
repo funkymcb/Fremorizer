@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"math"
 	"strings"
 	"time"
 
@@ -21,6 +22,12 @@ var (
 	styleHint     = lipgloss.NewStyle().Faint(true)
 	styleSuccess  = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
 	styleError    = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
+	styleResult   = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("2")).
+			Foreground(lipgloss.Color("15")).
+			Bold(true).
+			Padding(0, 2)
 )
 
 // ── app states ────────────────────────────────────────────────────────────────
@@ -80,14 +87,15 @@ type model struct {
 	chordDifficulty   string // "easy", "medium", "hard"
 
 	// active game
-	selectedMode int
-	blink        int
-	activeGame   game.Game
-	feedback     string
-	feedbackOK   bool
-	wrongGuesses int
-	textInput    textinput.Model
-	revealed     bool
+	selectedMode  int
+	blink         int
+	activeGame    game.Game
+	feedback      string
+	feedbackOK    bool
+	wrongGuesses  int
+	textInput     textinput.Model
+	revealed      bool
+	gameStartTime time.Time
 }
 
 func initialModel() model {
@@ -216,6 +224,7 @@ func (m model) startGame(mode string) (tea.Model, tea.Cmd) {
 	m.activeGame = g
 	m.state = statePlaying
 	m.feedback = ""
+	m.gameStartTime = time.Now()
 	m.wrongGuesses = 0
 	m.revealed = false
 	m.textInput.Reset()
@@ -403,7 +412,12 @@ func (m model) updateSingleNoteMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.textInput.Reset()
 			if snGame.IsGameOver() {
 				m.state = stateModeSelect
-				m.feedback = "All notes green — well done!"
+				elapsed := time.Since(m.gameStartTime)
+				_, total := snGame.Progress()
+				avg := elapsed.Seconds() / math.Max(1, float64(total))
+				m.feedback = fmt.Sprintf("All notes green — well done! Time: %s | Avg: %.1fs per note",
+					formatDuration(elapsed), avg)
+				m.feedbackOK = true
 				return m, nil
 			}
 			return m, func() tea.Msg {
@@ -467,7 +481,13 @@ func (m model) updateFretSetMode(msg tea.KeyMsg, fsGame *game.FretSetGameImpl) (
 			if err := fsGame.Next(); err != nil {
 				m.feedback = fmt.Sprintf("Error: %v", err)
 			} else if boardDone {
-				m.feedback = fmt.Sprintf("Fretboard complete! Starting over — find '%s'.", fsGame.GetTargetNote())
+				elapsed := time.Since(m.gameStartTime)
+				sets := fsGame.FretSetsCompleted()
+				avg := elapsed.Seconds() / math.Max(1, float64(sets))
+				m.state = stateModeSelect
+				m.feedback = fmt.Sprintf("Fretboard complete — well done! Time: %s | Avg: %.1fs per fret set",
+					formatDuration(elapsed), avg)
+				m.feedbackOK = true
 			} else if fretSetDone {
 				m.feedback = fmt.Sprintf("Fret set complete! Now find '%s'.", fsGame.GetTargetNote())
 			} else {
@@ -567,7 +587,11 @@ func (m model) viewModeSelect() string {
 
 	sb.WriteString("\n")
 	if m.feedback != "" {
-		sb.WriteString(styleHint.Render(m.feedback) + "\n\n")
+		if m.feedbackOK {
+			sb.WriteString(styleResult.Render(m.feedback) + "\n\n")
+		} else {
+			sb.WriteString(styleHint.Render(m.feedback) + "\n\n")
+		}
 	}
 	sb.WriteString(styleHint.Render("↑/↓: navigate  Enter: select  o: options  q: quit"))
 	return sb.String()
@@ -668,7 +692,8 @@ func (m model) viewPlaying() string {
 		}
 		setCorrect, setTotal, boardCorrect, boardTotal := fsGame.Progress()
 		sb.WriteString(renderProgressBar(setCorrect, setTotal, 30) + " Fret set\n")
-		sb.WriteString(renderProgressBar(boardCorrect, boardTotal, 30) + " Fretboard\n\n")
+		sb.WriteString(renderProgressBar(boardCorrect, boardTotal, 30) + " Fretboard\n")
+		sb.WriteString(styleHint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
 		sb.WriteString(styleHint.Render("hjkl/arrows: move  Space/Enter: mark  Esc: back"))
 	} else {
 		sb.WriteString(instrument.Render(m.activeGame.GetInstrument(), opts))
@@ -685,7 +710,8 @@ func (m model) viewPlaying() string {
 		}
 		if snGame, ok := m.activeGame.(*game.SingleNoteGame); ok {
 			correct, total := snGame.Progress()
-			sb.WriteString(renderProgressBar(correct, total, 30) + "\n\n")
+			sb.WriteString(renderProgressBar(correct, total, 30) + "\n")
+			sb.WriteString(styleHint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
 		}
 		sb.WriteString(styleHint.Render("Type note name and press Enter  Esc: back"))
 	}
@@ -794,6 +820,14 @@ func maxStrings(instrType string) int {
 	default:
 		return 8
 	}
+}
+
+func formatDuration(d time.Duration) string {
+	s := int(d.Seconds())
+	if s < 60 {
+		return fmt.Sprintf("%ds", s)
+	}
+	return fmt.Sprintf("%dm %02ds", s/60, s%60)
 }
 
 func nextChordDifficulty(cur string) string {

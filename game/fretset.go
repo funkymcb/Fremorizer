@@ -16,13 +16,14 @@ import (
 //  5. A new target note is picked from the remaining unsolved positions.
 //  6. When every position in the fret set is solved → the fret set advances.
 type FretSetGameImpl struct {
-	inst         *instrument.Instrument
-	targetNote   string
-	fretStart    int // 1-indexed, inclusive
-	fretEnd      int // inclusive
-	cursorString int
-	cursorFret   int
-	sequential   bool
+	inst              *instrument.Instrument
+	targetNote        string
+	fretStart         int // 1-indexed, inclusive
+	fretEnd           int // inclusive
+	cursorString      int
+	cursorFret        int
+	sequential        bool
+	fretSetsCompleted int
 }
 
 func NewFretSetGame(inst *instrument.Instrument, sequential bool) *FretSetGameImpl {
@@ -36,6 +37,7 @@ func (g *FretSetGameImpl) GetInstrument() *instrument.Instrument { return g.inst
 func (g *FretSetGameImpl) GetTargetNote() string                 { return g.targetNote }
 func (g *FretSetGameImpl) GetFretSetBounds() (int, int)          { return g.fretStart, g.fretEnd }
 func (g *FretSetGameImpl) GetCursor() (int, int)                 { return g.cursorString, g.cursorFret }
+func (g *FretSetGameImpl) FretSetsCompleted() int                { return g.fretSetsCompleted }
 
 func (g *FretSetGameImpl) MoveCursor(ds, df int) {
 	n := len(g.inst.Strings)
@@ -155,6 +157,7 @@ func (g *FretSetGameImpl) Next() error {
 	g.solveCurrentNote()
 
 	if g.isFretSetFullySolved() {
+		g.fretSetsCompleted++
 		g.clearFretSet() // clears Marked only; Solved is preserved for fretboard progress
 		if g.isBoardFullySolved() {
 			g.resetBoard()

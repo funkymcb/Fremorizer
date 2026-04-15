@@ -519,6 +519,31 @@ func (m model) updateChordsMode(msg tea.KeyMsg, cg *game.ChordsGame) (tea.Model,
 		m.state = stateModeSelect
 		m.feedback = ""
 		return m, nil
+	}
+
+	// Medium difficulty: cursor-marking sub-phase.
+	if cg.IsMarking() {
+		switch msg.String() {
+		case "up", "k":
+			cg.MoveCursor(-1, 0)
+		case "down", "j":
+			cg.MoveCursor(1, 0)
+		case "left", "h":
+			cg.MoveCursor(0, -1)
+		case "right", "l":
+			cg.MoveCursor(0, 1)
+		case " ", "enter":
+			cs, cf := cg.GetCursor()
+			cg.ToggleMark(cs, cf)
+			if cg.IsMarkingComplete() {
+				cg.Next() //nolint
+				m.feedback = ""
+			}
+		}
+		return m, nil
+	}
+
+	switch msg.String() {
 	case "enter":
 		if cg.Phase() == game.ChordPhaseComplete {
 			cg.Next() //nolint
@@ -546,6 +571,11 @@ func (m model) updateChordsMode(msg tea.KeyMsg, cg *game.ChordsGame) (tea.Model,
 			prevPhase := cg.Phase()
 			cg.Next() //nolint
 			m.textInput.Reset()
+			if cg.IsMarking() {
+				// Entering marking sub-phase — clear feedback so view shows prompt.
+				m.feedback = ""
+				return m, nil
+			}
 			switch {
 			case prevPhase == game.ChordPhaseNaming:
 				m.feedback = fmt.Sprintf("Correct! Now identify the intervals of %s.", cg.ChordDisplayName())
@@ -746,18 +776,42 @@ func (m model) viewChordsMode(cg *game.ChordsGame, opts instrument.RenderOpts) s
 	var sb strings.Builder
 
 	opts.ChordMode = true
+	if cg.Difficulty() == "medium" {
+		opts.HideIntervals = true
+	}
+	if cg.IsMarking() {
+		cs, cf := cg.GetCursor()
+		opts.ShowCursor = true
+		opts.CursorString = cs
+		opts.CursorFret = cf
+	}
+
 	sb.WriteString(instrument.Render(cg.GetInstrument(), opts))
 	sb.WriteString("\n")
 
-	switch cg.Phase() {
-	case game.ChordPhaseNaming:
+	switch {
+	case cg.IsMarking():
+		sb.WriteString(fmt.Sprintf("Chord: %s\n", styleTitle.Render(cg.ChordDisplayName())))
+		sb.WriteString(cg.CurrentMarkingPrompt() + "\n")
+		if hintCorrect, hintWrong := cg.MarkingHintInfo(); hintCorrect+hintWrong >= 2 {
+			var hint string
+			if hintWrong == 0 {
+				hint = fmt.Sprintf("Hint: %d correct mark(s) — keep going!", hintCorrect)
+			} else if hintCorrect > 0 {
+				hint = fmt.Sprintf("Hint: %d correct mark(s) but %d wrong — remove the wrong ones.", hintCorrect, hintWrong)
+			} else {
+				hint = "Hint: None of your marks are correct yet."
+			}
+			sb.WriteString(styleError.Render(hint) + "\n")
+		}
+	case cg.Phase() == game.ChordPhaseNaming:
 		sb.WriteString("Which chord is this? ")
 		sb.WriteString(m.textInput.View() + "\n")
-	case game.ChordPhaseIntervals:
+	case cg.Phase() == game.ChordPhaseIntervals:
 		sb.WriteString(fmt.Sprintf("Chord: %s\n", styleTitle.Render(cg.ChordDisplayName())))
 		sb.WriteString(cg.CurrentIntervalPrompt() + " ")
 		sb.WriteString(m.textInput.View() + "\n")
-	case game.ChordPhaseComplete:
+	case cg.Phase() == game.ChordPhaseComplete:
 		sb.WriteString(fmt.Sprintf("Chord: %s\n", styleTitle.Render(cg.ChordDisplayName())))
 		sb.WriteString(styleSuccess.Render("All intervals found! Press Enter for next chord.") + "\n")
 	}
@@ -770,10 +824,15 @@ func (m model) viewChordsMode(cg *game.ChordsGame, opts instrument.RenderOpts) s
 		}
 	}
 
+	sb.WriteString("\n")
 	completed, total := cg.Progress()
 	sb.WriteString(renderProgressBar(completed, total, 30) + "\n")
 	sb.WriteString(styleHint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
-	sb.WriteString(styleHint.Render("Type answer and press Enter  Esc: back"))
+	if cg.IsMarking() {
+		sb.WriteString(styleHint.Render("hjkl/arrows: move  Space/Enter: mark  Esc: back"))
+	} else {
+		sb.WriteString(styleHint.Render("Type answer and press Enter  Esc: back"))
+	}
 	return sb.String()
 }
 
@@ -880,7 +939,7 @@ func prevChordDifficulty(cur string) string {
 func chordDifficultyLabel(d string) string {
 	switch d {
 	case "medium":
-		return "medium (coming soon)"
+		return "medium (hidden intervals)"
 	case "hard":
 		return "hard (coming soon)"
 	default:

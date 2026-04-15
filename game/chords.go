@@ -170,14 +170,21 @@ type ChordsGame struct {
 	phase           int // ChordPhaseNaming / ChordPhaseIntervals / ChordPhaseComplete
 	chordsCompleted int
 	chordsRequired  int
+	difficulty      string // "easy", "medium"
+	marking         bool   // medium: cursor-marking sub-phase within ChordPhaseIntervals
+	cursorString    int
+	cursorFret      int
 }
 
 // NewChordsGame creates a chord game for the given instrument (must be 6-string guitar).
-func NewChordsGame(inst *instrument.Instrument, chordsRequired int) *ChordsGame {
+func NewChordsGame(inst *instrument.Instrument, chordsRequired int, difficulty string) *ChordsGame {
 	if chordsRequired < 1 {
 		chordsRequired = 20
 	}
-	g := &ChordsGame{inst: inst, chordsRequired: chordsRequired}
+	if difficulty == "" {
+		difficulty = "easy"
+	}
+	g := &ChordsGame{inst: inst, chordsRequired: chordsRequired, difficulty: difficulty}
 	g.pickNewChord()
 	return g
 }
@@ -217,14 +224,45 @@ func (g *ChordsGame) Next() error {
 	case ChordPhaseNaming:
 		g.phase = ChordPhaseIntervals
 	case ChordPhaseIntervals:
-		if g.currentIdx < len(g.intervals) {
-			iv := &g.intervals[g.currentIdx]
-			iv.solved = true
-			g.solveInterval(iv.symbol)
-		}
-		g.currentIdx++
-		if g.currentIdx >= len(g.intervals) {
-			g.phase = ChordPhaseComplete
+		if g.difficulty == "medium" {
+			if !g.marking {
+				// Player just named the interval note — auto-solve open string (fret 0) position.
+				iv := &g.intervals[g.currentIdx]
+				iv.solved = true
+				g.solveIntervalFret0(iv.symbol)
+				// If there are fret1+ positions, enter marking sub-phase.
+				if g.hasMarkablePositions(iv.symbol) {
+					g.marking = true
+					g.initCursorForMarking()
+					return nil
+				}
+				// No fret1+ positions — advance interval immediately.
+				g.currentIdx++
+				if g.currentIdx >= len(g.intervals) {
+					g.phase = ChordPhaseComplete
+				}
+			} else {
+				// Player finished marking — solve fret1+ positions and advance.
+				iv := g.intervals[g.currentIdx]
+				g.solveIntervalFret1Plus(iv.symbol)
+				g.clearAllMarks()
+				g.marking = false
+				g.currentIdx++
+				if g.currentIdx >= len(g.intervals) {
+					g.phase = ChordPhaseComplete
+				}
+			}
+		} else {
+			// Easy mode.
+			if g.currentIdx < len(g.intervals) {
+				iv := &g.intervals[g.currentIdx]
+				iv.solved = true
+				g.solveInterval(iv.symbol)
+			}
+			g.currentIdx++
+			if g.currentIdx >= len(g.intervals) {
+				g.phase = ChordPhaseComplete
+			}
 		}
 	case ChordPhaseComplete:
 		g.chordsCompleted++
@@ -240,6 +278,67 @@ func (g *ChordsGame) Next() error {
 // Phase returns the current game phase constant.
 func (g *ChordsGame) Phase() int { return g.phase }
 
+// Difficulty returns the difficulty setting ("easy", "medium").
+func (g *ChordsGame) Difficulty() string { return g.difficulty }
+
+// IsMarking returns true when the player is in the cursor-marking sub-phase (medium only).
+func (g *ChordsGame) IsMarking() bool { return g.marking }
+
+// GetCursor returns the current cursor position (string index, fret index).
+func (g *ChordsGame) GetCursor() (int, int) { return g.cursorString, g.cursorFret }
+
+// MoveCursor moves the cursor by (ds strings, df frets), wrapping at boundaries.
+func (g *ChordsGame) MoveCursor(ds, df int) {
+	n := len(g.inst.Strings)
+	g.cursorString = ((g.cursorString+ds)%n + n) % n
+	maxFret := g.inst.Frets
+	fret := g.cursorFret + df
+	if fret < 1 {
+		fret = maxFret
+	}
+	if fret > maxFret {
+		fret = 1
+	}
+	g.cursorFret = fret
+}
+
+// ToggleMark toggles the Marked state of a fret1+ position (medium marking phase).
+func (g *ChordsGame) ToggleMark(si, fi int) {
+	if fi < 1 || fi >= len(g.inst.Strings[0].Notes) {
+		return
+	}
+	if si < 0 || si >= len(g.inst.Strings) {
+		return
+	}
+	note := &g.inst.Strings[si].Notes[fi]
+	if note.Solved {
+		return
+	}
+	note.Marked = !note.Marked
+}
+
+// IsMarkingComplete returns true when all fret1+ positions of the current interval
+// are marked and no other fret1+ positions are marked.
+func (g *ChordsGame) IsMarkingComplete() bool {
+	if g.currentIdx >= len(g.intervals) {
+		return false
+	}
+	symbol := g.intervals[g.currentIdx].symbol
+	for _, s := range g.inst.Strings {
+		for fi := 1; fi < len(s.Notes); fi++ {
+			n := s.Notes[fi]
+			if n.Solved {
+				continue
+			}
+			isTarget := n.Interval == symbol
+			if isTarget != n.Marked {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // ChordDisplayName returns the chord name the player must identify (e.g., "Gm", "C#").
 func (g *ChordsGame) ChordDisplayName() string {
 	root := strings.Split(g.rootNote, "/")[0]
@@ -251,10 +350,41 @@ func (g *ChordsGame) ChordDisplayName() string {
 
 // CurrentIntervalPrompt returns the prompt string for the current interval, or "".
 func (g *ChordsGame) CurrentIntervalPrompt() string {
-	if g.phase != ChordPhaseIntervals || g.currentIdx >= len(g.intervals) {
+	if g.phase != ChordPhaseIntervals || g.marking || g.currentIdx >= len(g.intervals) {
 		return ""
 	}
 	return fmt.Sprintf("What is the %s?", g.intervals[g.currentIdx].humanName)
+}
+
+// MarkingHintInfo returns the number of correctly and incorrectly marked fret1+ positions
+// for the current interval.
+func (g *ChordsGame) MarkingHintInfo() (correct, wrong int) {
+	if g.currentIdx >= len(g.intervals) {
+		return
+	}
+	symbol := g.intervals[g.currentIdx].symbol
+	for _, s := range g.inst.Strings {
+		for fi := 1; fi < len(s.Notes); fi++ {
+			n := s.Notes[fi]
+			if !n.Marked {
+				continue
+			}
+			if n.Interval == symbol {
+				correct++
+			} else {
+				wrong++
+			}
+		}
+	}
+	return
+}
+
+// CurrentMarkingPrompt returns the marking instruction for the current interval (medium only).
+func (g *ChordsGame) CurrentMarkingPrompt() string {
+	if !g.marking || g.currentIdx >= len(g.intervals) {
+		return ""
+	}
+	return fmt.Sprintf("Mark all %s positions on the fretboard.", g.intervals[g.currentIdx].humanName)
 }
 
 // ── internal helpers ──────────────────────────────────────────────────────────
@@ -359,7 +489,70 @@ func (g *ChordsGame) clearChord() {
 			g.inst.Strings[si].Notes[fi].Interval = ""
 			g.inst.Strings[si].Notes[fi].Solved = false
 			g.inst.Strings[si].Notes[fi].Muted = false
+			g.inst.Strings[si].Notes[fi].Marked = false
 		}
+	}
+	g.marking = false
+}
+
+// solveIntervalFret0 marks fret-0 (open string) positions for the given interval as Solved.
+func (g *ChordsGame) solveIntervalFret0(symbol string) {
+	for si := range g.inst.Strings {
+		if g.inst.Strings[si].Notes[0].Interval == symbol {
+			g.inst.Strings[si].Notes[0].Solved = true
+		}
+	}
+}
+
+// solveIntervalFret1Plus marks fret 1+ positions for the given interval as Solved.
+func (g *ChordsGame) solveIntervalFret1Plus(symbol string) {
+	for si := range g.inst.Strings {
+		for fi := 1; fi < len(g.inst.Strings[si].Notes); fi++ {
+			if g.inst.Strings[si].Notes[fi].Interval == symbol {
+				g.inst.Strings[si].Notes[fi].Solved = true
+				g.inst.Strings[si].Notes[fi].Marked = false
+			}
+		}
+	}
+}
+
+// hasMarkablePositions returns true if any unsolved fret1+ position carries the given interval.
+func (g *ChordsGame) hasMarkablePositions(symbol string) bool {
+	for _, s := range g.inst.Strings {
+		for fi := 1; fi < len(s.Notes); fi++ {
+			if s.Notes[fi].Interval == symbol && !s.Notes[fi].Solved {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// clearAllMarks removes all player marks from the instrument.
+func (g *ChordsGame) clearAllMarks() {
+	for si := range g.inst.Strings {
+		for fi := range g.inst.Strings[si].Notes {
+			g.inst.Strings[si].Notes[fi].Marked = false
+		}
+	}
+}
+
+// initCursorForMarking places the cursor on the high E string (index 0) at the
+// lowest fret where any chord note appears.
+func (g *ChordsGame) initCursorForMarking() {
+	minFret := g.inst.Frets + 1
+	for _, s := range g.inst.Strings {
+		for fi := 1; fi < len(s.Notes); fi++ {
+			if s.Notes[fi].Interval != "" && fi < minFret {
+				minFret = fi
+			}
+		}
+	}
+	g.cursorString = 0
+	if minFret <= g.inst.Frets {
+		g.cursorFret = minFret
+	} else {
+		g.cursorFret = 1
 	}
 }
 

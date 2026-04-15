@@ -17,13 +17,15 @@ var (
 
 // RenderOpts controls how the fretboard is rendered.
 type RenderOpts struct {
-	Blink        int  // 0 or 1 for blinking animation
-	FretSetMode  bool // mode 2: highlight a fret set
-	FretSetStart int  // first fret of the highlighted set (1-indexed)
-	FretSetEnd   int  // last fret of highlighted set (inclusive)
-	CursorString int  // mode 2: cursor row (0-indexed, from top of display)
-	CursorFret   int  // mode 2: cursor fret (0-indexed absolute, 0 = open string)
-	ChordMode    bool // mode 3: show chord interval labels; widens left label to 3 chars
+	Blink         int  // 0 or 1 for blinking animation
+	FretSetMode   bool // mode 2: highlight a fret set
+	FretSetStart  int  // first fret of the highlighted set (1-indexed)
+	FretSetEnd    int  // last fret of highlighted set (inclusive)
+	CursorString  int  // cursor row (0-indexed, from top of display)
+	CursorFret    int  // cursor fret (1-indexed absolute)
+	ChordMode     bool // mode 3: show chord interval labels; widens left label to 3 chars
+	HideIntervals bool // mode 3 medium: replace unsolved interval labels with "x"
+	ShowCursor    bool // show cursor independent of FretSetMode
 }
 
 // Render returns an ASCII art representation of the fretboard.
@@ -90,7 +92,7 @@ func renderStrings(strs []InstrumentString, opts RenderOpts) string {
 		// open string note name (left label)
 		openName := s.Notes[0].Name
 		if opts.ChordMode {
-			sb.WriteString(chordStringLabel(s.Notes[0]))
+			sb.WriteString(chordStringLabel(s.Notes[0], opts.HideIntervals))
 		} else if len(openName) == 1 {
 			sb.WriteString(fmt.Sprintf("%s ", openName))
 		} else {
@@ -103,11 +105,11 @@ func renderStrings(strs []InstrumentString, opts RenderOpts) string {
 				continue // open string already rendered as label
 			}
 
-			isCursor := opts.FretSetMode &&
+			isCursor := (opts.FretSetMode || opts.ShowCursor) &&
 				strIdx == opts.CursorString &&
 				fretIdx == opts.CursorFret
 
-			cell := renderCell(note, opts.Blink, isCursor)
+			cell := renderCell(note, opts.Blink, isCursor, opts.HideIntervals)
 
 			if opts.FretSetMode && fretIdx >= opts.FretSetStart && fretIdx <= opts.FretSetEnd {
 				// fret set frets: render in blue unless overridden by cursor/mark
@@ -139,11 +141,28 @@ func renderStrings(strs []InstrumentString, opts RenderOpts) string {
 	return sb.String()
 }
 
-func renderCell(note Note, blink int, isCursor bool) string {
+func renderCell(note Note, blink int, isCursor bool, hideIntervals bool) string {
 	// Chord mode: interval-marked fret position
 	if note.Interval != "" {
 		if note.Solved {
+			if isCursor {
+				return "|" + styleCursor.Render(noteCellLabel(note.Name))
+			}
 			return "|" + styleGreen.Render(noteCellLabel(note.Name))
+		}
+		if hideIntervals {
+			if note.Marked {
+				marked := "--●--"
+				if isCursor {
+					return "|" + styleCursor.Render(marked)
+				}
+				return "|" + styleMarked.Render(marked)
+			}
+			hidden := "--x--"
+			if isCursor {
+				return "|" + styleCursor.Render(hidden)
+			}
+			return "|" + hidden
 		}
 		return "|" + intervalCellLabel(note.Interval)
 	}
@@ -225,7 +244,8 @@ func intervalCellLabel(interval string) string {
 // chordStringLabel returns the 3-char left label for a string in chord mode.
 // Muted strings show "x  ", open chord notes show the interval (or solved note name),
 // and all other strings show the note name padded to 3 chars.
-func chordStringLabel(openNote Note) string {
+// When hideIntervals is true (medium difficulty), unsolved interval labels are hidden.
+func chordStringLabel(openNote Note, hideIntervals bool) string {
 	if openNote.Muted {
 		return "x  "
 	}
@@ -238,18 +258,20 @@ func chordStringLabel(openNote Note) string {
 			}
 			return styled
 		}
-		switch openNote.Interval {
-		case "1":
-			return "1  "
-		case "3":
-			return "3  "
-		case "5":
-			return "5  "
-		case "b3":
-			return "b3 "
+		if !hideIntervals {
+			switch openNote.Interval {
+			case "1":
+				return "1  "
+			case "3":
+				return "3  "
+			case "5":
+				return "5  "
+			case "b3":
+				return "b3 "
+			}
 		}
 	}
-	// Regular: note name padded to 3 chars
+	// Regular or hidden: note name padded to 3 chars
 	name := strings.Split(openNote.Name, "/")[0]
 	if len(name) == 1 {
 		return name + "  "

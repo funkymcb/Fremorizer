@@ -49,6 +49,8 @@ func New(mode string, inst *instrument.Instrument, opts map[string]any) (Game, e
 		}
 		chordCount, _ := opts["chordCount"].(int)
 		return NewChordsGame(inst, chordCount, difficulty), nil
+	case "freelearning":
+		return NewFreeLearningGame(inst), nil
 	default:
 		return nil, fmt.Errorf("unknown game mode: %s", mode)
 	}

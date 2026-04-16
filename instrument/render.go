@@ -157,6 +157,14 @@ func renderStrings(strs []InstrumentString, opts RenderOpts, st renderStyles) st
 }
 
 func renderCell(note Note, blink int, isCursor bool, hideIntervals bool, st renderStyles) string {
+	// Mode 4: free learning — show note name in green (cursor takes priority for color).
+	if note.ShowName {
+		if isCursor {
+			return "|" + st.cursor.Render(noteCellLabel(note.Name))
+		}
+		return "|" + st.green.Render(noteCellLabel(note.Name))
+	}
+
 	// Chord mode: interval-marked fret position
 	if note.Interval != "" {
 		if note.Solved {

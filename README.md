@@ -145,8 +145,8 @@ E |-----|-----  |-----|-----|-----|  -----|-----|-----|-----|-----|-----|-----|
 For this game mode there are 3 levels of difficulty which can be set in the options menu.
 
 - easy (default): just basic major / minor chords
-- medium: 7th and 9th chords are added
-- hard: all the chords i could think of are there
+- medium: intervals are hidden and need to be marked by the player
+- hard: like medium but with 7th and 9th chords added
 
 ##### easy game mode
 
@@ -321,4 +321,78 @@ G  |-----|-----|-----|--5--|-----|-----|-----|-----|-----|-----|-----|-----|
 D  |-----|--1--|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
 A x|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
 E x|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+```
+
+##### medium game mode
+
+The medium difficulty is similar to easy with a few minor changes.<br>
+It works with the same chords as easy but the intervals are hidden:
+
+```text
+      1           3           5           7           9                12
+E  |-----|-----|--x--|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+B  |-----|-----|-----|-----|--x--|-----|-----|-----|-----|-----|-----|-----|
+G  |-----|-----|-----|--x--|-----|-----|-----|-----|-----|-----|-----|-----|
+D  |-----|--x--|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+A x|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+E x|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+```
+
+The player needs to define the chord name like before and then needs to name the intervals.<br>
+As an additional step you need to mark the interval on the fretboard.
+
+#### Game mode 4 (free learning)
+
+In this game mode you have a free cursor over the fretboard.<br>
+With that cursor you can do multiple things.
+
+pressing...
+
+- 'space': will reveal the note under the cursor
+- 's': will reveal the notes of the whole string under the cursor
+- 'f': will revel the notes of the fret under the cursor
+- 'm': will reveal a minor scale from the cursor position
+- 'M': will reveal a major scale from the cursor position
+
+The scales should look like the following:<br>
+
+Major scale (w w h w w w h)<br>
+Example with cursor on low e string third fret and 'M' for major scale:
+
+```text
+      1           3           5           7           9                12
+E  |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+B  |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+G  |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+D  |-----|--E--|-----|-F#--|--G--|-----|-----|-----|-----|-----|-----|-----|
+A  |-----|--B--|--C--|-----|--D--|-----|-----|-----|-----|-----|-----|-----|
+E  |-----|-----|--G--|-----|--A--|-----|-----|-----|-----|-----|-----|-----|
+```
+
+Minor scale (w h w w h w w)
+Example with cursor on low e string third fret and 'm' for major scale:
+
+```text
+      1           3           5           7           9                12
+E  |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+B  |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+G  |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+D  |-----|-----|--F--|-----|--G--|-----|-----|-----|-----|-----|-----|-----|
+A  |-----|-----|--C--|-----|--D--|-Eb--|-----|-----|-----|-----|-----|-----|
+E  |-----|-----|--G--|-----|--A--|-Bb--|-----|-----|-----|-----|-----|-----|
+```
+
+For all examples on the A string the layout looks the same.<br>
+For Strings D and G the warp between 4th and 5th string needs to be considered of course.<br>
+
+Complex example A# Major scale with cursor on G string third fret and M for Major pressed:
+
+```text
+      1           3           5           7           9                12
+E  |-----|-----|-F##-|-----|-G##-|-A#--|-----|-----|-----|-----|-----|-----|
+B  |-----|-----|-C##-|-D#--|-----|-E#--|-----|-----|-----|-----|-----|-----|
+G  |-----|-----|--A#-|-----|-B#--|-----|-----|-----|-----|-----|-----|-----|
+D  |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+A  |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
+E  |-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|
 ```

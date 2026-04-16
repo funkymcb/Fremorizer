@@ -199,7 +199,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateModeSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	modes := []string{"single", "fretset", "chords"}
+	modes := []string{"single", "fretset", "chords", "freelearning"}
 
 	switch msg.String() {
 	case "ctrl+c", "q":
@@ -399,6 +399,9 @@ func (m model) updatePlaying(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 	if cgGame, ok := m.activeGame.(*game.ChordsGame); ok {
 		return m.updateChordsMode(msg, cgGame)
+	}
+	if flGame, ok := m.activeGame.(*game.FreeLearningGame); ok {
+		return m.updateFreeLearningMode(msg, flGame)
 	}
 	return m.updateSingleNoteMode(msg)
 }
@@ -655,6 +658,7 @@ func (m model) viewModeSelect() string {
 		"1. Guess a random note (per string)",
 		"2. Find notes in a set of 3 frets",
 		"3. Identify chord notes (CAGED system)",
+		"4. Free learning (explore the fretboard)",
 	}
 	for i, mode := range modes {
 		if i == m.modeCursor {
@@ -744,6 +748,10 @@ func (m model) viewPlaying() string {
 
 	if cgGame, ok := m.activeGame.(*game.ChordsGame); ok {
 		return m.viewChordsMode(cgGame, opts)
+	}
+
+	if flGame, ok := m.activeGame.(*game.FreeLearningGame); ok {
+		return m.viewFreeLearningMode(flGame, opts)
 	}
 
 	if fsGame, ok := m.activeGame.(*game.FretSetGameImpl); ok {
@@ -860,6 +868,60 @@ func (m model) viewChordsMode(cg *game.ChordsGame, opts instrument.RenderOpts) s
 	} else {
 		sb.WriteString(m.styles.hint.Render("Type answer and press Enter  Esc: back"))
 	}
+	return sb.String()
+}
+
+func (m model) updateFreeLearningMode(msg tea.KeyMsg, flGame *game.FreeLearningGame) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c":
+		return m, tea.Quit
+	case "esc":
+		m.state = stateModeSelect
+		m.feedback = ""
+		return m, nil
+	case "up", "k":
+		flGame.MoveCursor(-1, 0)
+	case "down", "j":
+		flGame.MoveCursor(1, 0)
+	case "left", "h":
+		flGame.MoveCursor(0, -1)
+	case "right", "l":
+		flGame.MoveCursor(0, 1)
+	case " ":
+		flGame.RevealNote()
+	case "s":
+		flGame.RevealString()
+	case "f":
+		flGame.RevealFret()
+	case "m":
+		flGame.RevealScale(true)
+	case "M":
+		flGame.RevealScale(false)
+	case "r":
+		flGame.ClearAll()
+	}
+	return m, nil
+}
+
+func (m model) viewFreeLearningMode(flGame *game.FreeLearningGame, opts instrument.RenderOpts) string {
+	var sb strings.Builder
+
+	cs, cf := flGame.GetCursor()
+	opts.ShowCursor = true
+	opts.CursorString = cs
+	opts.CursorFret = cf
+
+	sb.WriteString(instrument.Render(flGame.GetInstrument(), opts))
+	sb.WriteString("\n")
+
+	if msg := flGame.GetMessage(); msg != "" {
+		sb.WriteString(m.styles.success.Render(msg) + "\n")
+	} else {
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString(m.styles.hint.Render("hjkl/arrows: move  Space: reveal note") + "\n")
+	sb.WriteString(m.styles.hint.Render("s: string  f: fret  m: minor scale  M: major scale  r: clear  Esc: back"))
 	return sb.String()
 }
 

@@ -7,41 +7,56 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	styleGreen  = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
-	styleRed    = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
-	styleBlue   = lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
-	styleCursor = lipgloss.NewStyle().Background(lipgloss.Color("5")).Foreground(lipgloss.Color("15")).Bold(true)
-	styleMarked = lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Bold(true)
-)
+type renderStyles struct {
+	green  lipgloss.Style
+	red    lipgloss.Style
+	blue   lipgloss.Style
+	cursor lipgloss.Style
+	marked lipgloss.Style
+}
+
+func newRenderStyles(r *lipgloss.Renderer) renderStyles {
+	if r == nil {
+		r = lipgloss.DefaultRenderer()
+	}
+	return renderStyles{
+		green:  r.NewStyle().Foreground(lipgloss.Color("2")).Bold(true),
+		red:    r.NewStyle().Foreground(lipgloss.Color("1")).Bold(true),
+		blue:   r.NewStyle().Foreground(lipgloss.Color("4")),
+		cursor: r.NewStyle().Background(lipgloss.Color("5")).Foreground(lipgloss.Color("15")).Bold(true),
+		marked: r.NewStyle().Foreground(lipgloss.Color("3")).Bold(true),
+	}
+}
 
 // RenderOpts controls how the fretboard is rendered.
 type RenderOpts struct {
-	Blink         int  // 0 or 1 for blinking animation
-	FretSetMode   bool // mode 2: highlight a fret set
-	FretSetStart  int  // first fret of the highlighted set (1-indexed)
-	FretSetEnd    int  // last fret of highlighted set (inclusive)
-	CursorString  int  // cursor row (0-indexed, from top of display)
-	CursorFret    int  // cursor fret (1-indexed absolute)
-	ChordMode     bool // mode 3: show chord interval labels; widens left label to 3 chars
-	HideIntervals bool // mode 3 medium: replace unsolved interval labels with "x"
-	ShowCursor    bool // show cursor independent of FretSetMode
+	Renderer      *lipgloss.Renderer // nil = use default renderer
+	Blink         int                // 0 or 1 for blinking animation
+	FretSetMode   bool               // mode 2: highlight a fret set
+	FretSetStart  int                // first fret of the highlighted set (1-indexed)
+	FretSetEnd    int                // last fret of highlighted set (inclusive)
+	CursorString  int                // cursor row (0-indexed, from top of display)
+	CursorFret    int                // cursor fret (1-indexed absolute)
+	ChordMode     bool               // mode 3: show chord interval labels; widens left label to 3 chars
+	HideIntervals bool               // mode 3 medium: replace unsolved interval labels with "x"
+	ShowCursor    bool               // show cursor independent of FretSetMode
 }
 
 // Render returns an ASCII art representation of the fretboard.
 func Render(inst *Instrument, opts RenderOpts) string {
 	var sb strings.Builder
+	st := newRenderStyles(opts.Renderer)
 
 	header := fmt.Sprintf("%s | tuning: %s | frets: %d",
 		inst.Type, strings.Join(inst.Tuning, "-"), inst.Frets)
 	sb.WriteString(header + "\n")
-	sb.WriteString(renderMarkers(inst.Frets, opts) + "\n")
-	sb.WriteString(renderStrings(inst.Strings, opts))
+	sb.WriteString(renderMarkers(inst.Frets, opts, st) + "\n")
+	sb.WriteString(renderStrings(inst.Strings, opts, st))
 
 	return sb.String()
 }
 
-func renderMarkers(frets int, opts RenderOpts) string {
+func renderMarkers(frets int, opts RenderOpts, st renderStyles) string {
 	var sb strings.Builder
 	if opts.ChordMode {
 		sb.WriteString("   ") // align with 3-char chord-mode label
@@ -72,7 +87,7 @@ func renderMarkers(frets int, opts RenderOpts) string {
 		}
 
 		if opts.FretSetMode && i >= opts.FretSetStart && i <= opts.FretSetEnd {
-			sb.WriteString(styleBlue.Render(cell))
+			sb.WriteString(st.blue.Render(cell))
 		} else {
 			sb.WriteString(cell)
 		}
@@ -85,14 +100,14 @@ func renderMarkers(frets int, opts RenderOpts) string {
 	return sb.String()
 }
 
-func renderStrings(strs []InstrumentString, opts RenderOpts) string {
+func renderStrings(strs []InstrumentString, opts RenderOpts, st renderStyles) string {
 	var sb strings.Builder
 
 	for strIdx, s := range strs {
 		// open string note name (left label)
 		openName := s.Notes[0].Name
 		if opts.ChordMode {
-			sb.WriteString(chordStringLabel(s.Notes[0], opts.HideIntervals))
+			sb.WriteString(chordStringLabel(s.Notes[0], opts.HideIntervals, st))
 		} else if len(openName) == 1 {
 			sb.WriteString(fmt.Sprintf("%s ", openName))
 		} else {
@@ -109,12 +124,12 @@ func renderStrings(strs []InstrumentString, opts RenderOpts) string {
 				strIdx == opts.CursorString &&
 				fretIdx == opts.CursorFret
 
-			cell := renderCell(note, opts.Blink, isCursor, opts.HideIntervals)
+			cell := renderCell(note, opts.Blink, isCursor, opts.HideIntervals, st)
 
 			if opts.FretSetMode && fretIdx >= opts.FretSetStart && fretIdx <= opts.FretSetEnd {
 				// fret set frets: render in blue unless overridden by cursor/mark
 				if !isCursor && !note.Marked {
-					cell = styleBlue.Render(cell)
+					cell = st.blue.Render(cell)
 				}
 			}
 
@@ -132,7 +147,7 @@ func renderStrings(strs []InstrumentString, opts RenderOpts) string {
 
 			// closing | for fret set + gap
 			if opts.FretSetMode && fretIdx == opts.FretSetEnd {
-				sb.WriteString(styleBlue.Render("|") + "  ")
+				sb.WriteString(st.blue.Render("|") + "  ")
 			}
 		}
 		sb.WriteString("|\n")
@@ -141,26 +156,26 @@ func renderStrings(strs []InstrumentString, opts RenderOpts) string {
 	return sb.String()
 }
 
-func renderCell(note Note, blink int, isCursor bool, hideIntervals bool) string {
+func renderCell(note Note, blink int, isCursor bool, hideIntervals bool, st renderStyles) string {
 	// Chord mode: interval-marked fret position
 	if note.Interval != "" {
 		if note.Solved {
 			if isCursor {
-				return "|" + styleCursor.Render(noteCellLabel(note.Name))
+				return "|" + st.cursor.Render(noteCellLabel(note.Name))
 			}
-			return "|" + styleGreen.Render(noteCellLabel(note.Name))
+			return "|" + st.green.Render(noteCellLabel(note.Name))
 		}
 		if hideIntervals {
 			if note.Marked {
 				marked := "--●--"
 				if isCursor {
-					return "|" + styleCursor.Render(marked)
+					return "|" + st.cursor.Render(marked)
 				}
-				return "|" + styleMarked.Render(marked)
+				return "|" + st.marked.Render(marked)
 			}
 			hidden := "--x--"
 			if isCursor {
-				return "|" + styleCursor.Render(hidden)
+				return "|" + st.cursor.Render(hidden)
 			}
 			return "|" + hidden
 		}
@@ -172,9 +187,9 @@ func renderCell(note Note, blink int, isCursor bool, hideIntervals bool) string 
 			// just-revealed: show note name in correct color before advancing
 			label := noteCellLabel(note.Name)
 			if note.Correct {
-				return "|" + styleGreen.Render(label)
+				return "|" + st.green.Render(label)
 			}
-			return "|" + styleRed.Render(label)
+			return "|" + st.red.Render(label)
 		}
 		// unanswered: blink — red if this note was previously missed
 		var inner string
@@ -184,7 +199,7 @@ func renderCell(note Note, blink int, isCursor bool, hideIntervals bool) string 
 			inner = "|-(_)-"
 		}
 		if note.WasMissed {
-			return styleRed.Render(inner)
+			return st.red.Render(inner)
 		}
 		return inner
 	}
@@ -192,28 +207,28 @@ func renderCell(note Note, blink int, isCursor bool, hideIntervals bool) string 
 	if note.Revealed {
 		// answered and moved on: colored fill, name hidden
 		if note.Correct {
-			return "|" + styleGreen.Render("-----")
+			return "|" + st.green.Render("-----")
 		}
-		return "|" + styleRed.Render("-----")
+		return "|" + st.red.Render("-----")
 	}
 
 	if note.Solved {
 		if isCursor {
-			return "|" + styleCursor.Render("-----")
+			return "|" + st.cursor.Render("-----")
 		}
-		return "|" + styleGreen.Render("-----")
+		return "|" + st.green.Render("-----")
 	}
 
 	if note.Marked {
 		inner := "--x--"
 		if isCursor {
-			return "|" + styleCursor.Render(inner)
+			return "|" + st.cursor.Render(inner)
 		}
-		return "|" + styleMarked.Render(inner)
+		return "|" + st.marked.Render(inner)
 	}
 
 	if isCursor {
-		return "|" + styleCursor.Render("-----")
+		return "|" + st.cursor.Render("-----")
 	}
 
 	return "|-----"
@@ -245,14 +260,14 @@ func intervalCellLabel(interval string) string {
 // Muted strings show "x  ", open chord notes show the interval (or solved note name),
 // and all other strings show the note name padded to 3 chars.
 // When hideIntervals is true (medium difficulty), unsolved interval labels are hidden.
-func chordStringLabel(openNote Note, hideIntervals bool) string {
+func chordStringLabel(openNote Note, hideIntervals bool, st renderStyles) string {
 	if openNote.Muted {
 		return "x  "
 	}
 	if openNote.Interval != "" {
 		if openNote.Solved {
 			name := strings.Split(openNote.Name, "/")[0]
-			styled := styleGreen.Render(name)
+			styled := st.green.Render(name)
 			for i := len(name); i < 3; i++ {
 				styled += " "
 			}

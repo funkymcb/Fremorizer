@@ -25,19 +25,35 @@ import (
 
 // ── styles ────────────────────────────────────────────────────────────────────
 
-var (
-	styleTitle    = lipgloss.NewStyle().Bold(true).Underline(true)
-	styleSelected = lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Bold(true)
-	styleHint     = lipgloss.NewStyle().Faint(true)
-	styleSuccess  = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Bold(true)
-	styleError    = lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Bold(true)
-	styleResult   = lipgloss.NewStyle().
+type uiStyles struct {
+	renderer *lipgloss.Renderer
+	title    lipgloss.Style
+	selected lipgloss.Style
+	hint     lipgloss.Style
+	success  lipgloss.Style
+	errStyle lipgloss.Style
+	result   lipgloss.Style
+}
+
+func newUIStyles(r *lipgloss.Renderer) uiStyles {
+	if r == nil {
+		r = lipgloss.DefaultRenderer()
+	}
+	return uiStyles{
+		renderer: r,
+		title:    r.NewStyle().Bold(true).Underline(true),
+		selected: r.NewStyle().Foreground(lipgloss.Color("5")).Bold(true),
+		hint:     r.NewStyle().Faint(true),
+		success:  r.NewStyle().Foreground(lipgloss.Color("2")).Bold(true),
+		errStyle: r.NewStyle().Foreground(lipgloss.Color("1")).Bold(true),
+		result: r.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("2")).
 			Foreground(lipgloss.Color("15")).
 			Bold(true).
-			Padding(0, 2)
-)
+			Padding(0, 2),
+	}
+}
 
 // ── app states ────────────────────────────────────────────────────────────────
 
@@ -77,7 +93,8 @@ type (
 // ── model ─────────────────────────────────────────────────────────────────────
 
 type model struct {
-	state appState
+	styles uiStyles
+	state  appState
 
 	// mode selection
 	modeCursor int
@@ -109,7 +126,7 @@ type model struct {
 	gameStartTime time.Time
 }
 
-func initialModel() model {
+func initialModel(renderer *lipgloss.Renderer) model {
 	ti := textinput.New()
 	ti.Placeholder = "_"
 	ti.Focus()
@@ -121,6 +138,7 @@ func initialModel() model {
 	tuneInput.Width = 10
 
 	return model{
+		styles:            newUIStyles(renderer),
 		state:             stateModeSelect,
 		modeCursor:        0,
 		optCursor:         0,
@@ -630,7 +648,7 @@ func (m model) View() string {
 
 func (m model) viewModeSelect() string {
 	var sb strings.Builder
-	sb.WriteString(styleTitle.Render("Fremorizer") + "\n\n")
+	sb.WriteString(m.styles.title.Render("Fremorizer") + "\n\n")
 	sb.WriteString("Choose a game mode:\n\n")
 
 	modes := []string{
@@ -640,7 +658,7 @@ func (m model) viewModeSelect() string {
 	}
 	for i, mode := range modes {
 		if i == m.modeCursor {
-			sb.WriteString(styleSelected.Render("> "+mode) + "\n")
+			sb.WriteString(m.styles.selected.Render("> "+mode) + "\n")
 		} else {
 			sb.WriteString("  " + mode + "\n")
 		}
@@ -649,18 +667,18 @@ func (m model) viewModeSelect() string {
 	sb.WriteString("\n")
 	if m.feedback != "" {
 		if m.feedbackOK {
-			sb.WriteString(styleResult.Render(m.feedback) + "\n\n")
+			sb.WriteString(m.styles.result.Render(m.feedback) + "\n\n")
 		} else {
-			sb.WriteString(styleHint.Render(m.feedback) + "\n\n")
+			sb.WriteString(m.styles.hint.Render(m.feedback) + "\n\n")
 		}
 	}
-	sb.WriteString(styleHint.Render("↑/↓: navigate  Enter: select  o: options  q: quit"))
+	sb.WriteString(m.styles.hint.Render("↑/↓: navigate  Enter: select  o: options  q: quit"))
 	return sb.String()
 }
 
 func (m model) viewOptions() string {
 	var sb strings.Builder
-	sb.WriteString(styleTitle.Render("Options") + "\n\n")
+	sb.WriteString(m.styles.title.Render("Options") + "\n\n")
 
 	fretSetModeLabel := "random"
 	if m.fretSetSequential {
@@ -680,20 +698,20 @@ func (m model) viewOptions() string {
 
 	for i, label := range labels {
 		if i == m.optCursor {
-			sb.WriteString(styleSelected.Render("> "+label) + "\n")
+			sb.WriteString(m.styles.selected.Render("> "+label) + "\n")
 		} else {
 			sb.WriteString("  " + label + "\n")
 		}
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(styleHint.Render("↑/↓: navigate  Enter: select/cycle  +/-: adjust values  Esc/b: back"))
+	sb.WriteString(m.styles.hint.Render("↑/↓: navigate  Enter: select/cycle  +/-: adjust values  Esc/b: back"))
 	return sb.String()
 }
 
 func (m model) viewTuning() string {
 	var sb strings.Builder
-	sb.WriteString(styleTitle.Render("Edit Tuning") + "\n\n")
+	sb.WriteString(m.styles.title.Render("Edit Tuning") + "\n\n")
 
 	// display strings in reverse (high to low as shown on fretboard)
 	for i := len(m.tuning) - 1; i >= 0; i-- {
@@ -701,9 +719,9 @@ func (m model) viewTuning() string {
 		label := fmt.Sprintf("String %d: %s", i+1, m.tuning[i])
 		if displayIdx == m.tuneCursor {
 			if m.tuneEditMode {
-				sb.WriteString(styleSelected.Render("> String "+fmt.Sprint(i+1)+": ") + m.tuneInput.View() + "\n")
+				sb.WriteString(m.styles.selected.Render("> String "+fmt.Sprint(i+1)+": ") + m.tuneInput.View() + "\n")
 			} else {
-				sb.WriteString(styleSelected.Render("> "+label) + "\n")
+				sb.WriteString(m.styles.selected.Render("> "+label) + "\n")
 			}
 		} else {
 			sb.WriteString("  " + label + "\n")
@@ -712,9 +730,9 @@ func (m model) viewTuning() string {
 
 	sb.WriteString("\n")
 	if m.tuneEditMode {
-		sb.WriteString(styleHint.Render("Enter note name and press Enter. Valid: C C# Db D D# Eb E F F# Gb G G# Ab A A# Bb B"))
+		sb.WriteString(m.styles.hint.Render("Enter note name and press Enter. Valid: C C# Db D D# Eb E F F# Gb G G# Ab A A# Bb B"))
 	} else {
-		sb.WriteString(styleHint.Render("↑/↓: navigate  Enter: edit  Esc/b: back"))
+		sb.WriteString(m.styles.hint.Render("↑/↓: navigate  Enter: edit  Esc/b: back"))
 	}
 	return sb.String()
 }
@@ -722,7 +740,7 @@ func (m model) viewTuning() string {
 func (m model) viewPlaying() string {
 	var sb strings.Builder
 
-	opts := instrument.RenderOpts{Blink: m.blink}
+	opts := instrument.RenderOpts{Blink: m.blink, Renderer: m.styles.renderer}
 
 	if cgGame, ok := m.activeGame.(*game.ChordsGame); ok {
 		return m.viewChordsMode(cgGame, opts)
@@ -739,7 +757,7 @@ func (m model) viewPlaying() string {
 
 		sb.WriteString(instrument.Render(fsGame.GetInstrument(), opts))
 		sb.WriteString(fmt.Sprintf("\nNote to find: %s\n\n",
-			styleTitle.Render(fsGame.GetTargetNote())))
+			m.styles.title.Render(fsGame.GetTargetNote())))
 		if m.feedback != "" {
 			sb.WriteString(m.feedback + "\n\n")
 		}
@@ -750,32 +768,32 @@ func (m model) viewPlaying() string {
 			} else {
 				hint = "Hint: None of your marks are correct yet."
 			}
-			sb.WriteString(styleError.Render(hint) + "\n\n")
+			sb.WriteString(m.styles.errStyle.Render(hint) + "\n\n")
 		}
 		setCorrect, setTotal, boardCorrect, boardTotal := fsGame.Progress()
-		sb.WriteString(renderProgressBar(setCorrect, setTotal, 30) + " Fret set\n")
-		sb.WriteString(renderProgressBar(boardCorrect, boardTotal, 30) + " Fretboard\n")
-		sb.WriteString(styleHint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
-		sb.WriteString(styleHint.Render("hjkl/arrows: move  Space/Enter: mark  Esc: back"))
+		sb.WriteString(m.renderProgressBar(setCorrect, setTotal, 30) + " Fret set\n")
+		sb.WriteString(m.renderProgressBar(boardCorrect, boardTotal, 30) + " Fretboard\n")
+		sb.WriteString(m.styles.hint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
+		sb.WriteString(m.styles.hint.Render("hjkl/arrows: move  Space/Enter: mark  Esc: back"))
 	} else {
 		sb.WriteString(instrument.Render(m.activeGame.GetInstrument(), opts))
 		sb.WriteString("\n")
 		sb.WriteString(m.textInput.View() + "\n")
 		if m.feedback != "" {
 			if m.feedbackOK {
-				sb.WriteString(styleSuccess.Render(m.feedback) + "\n")
+				sb.WriteString(m.styles.success.Render(m.feedback) + "\n")
 			} else {
-				sb.WriteString(styleError.Render(m.feedback) + "\n")
+				sb.WriteString(m.styles.errStyle.Render(m.feedback) + "\n")
 			}
 		} else {
 			sb.WriteString("Find the note!\n\n")
 		}
 		if snGame, ok := m.activeGame.(*game.SingleNoteGame); ok {
 			correct, total := snGame.Progress()
-			sb.WriteString(renderProgressBar(correct, total, 30) + "\n")
-			sb.WriteString(styleHint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
+			sb.WriteString(m.renderProgressBar(correct, total, 30) + "\n")
+			sb.WriteString(m.styles.hint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
 		}
-		sb.WriteString(styleHint.Render("Type note name and press Enter  Esc: back"))
+		sb.WriteString(m.styles.hint.Render("Type note name and press Enter  Esc: back"))
 	}
 
 	return sb.String()
@@ -800,7 +818,7 @@ func (m model) viewChordsMode(cg *game.ChordsGame, opts instrument.RenderOpts) s
 
 	switch {
 	case cg.IsMarking():
-		sb.WriteString(fmt.Sprintf("Chord: %s\n", styleTitle.Render(cg.ChordDisplayName())))
+		sb.WriteString(fmt.Sprintf("Chord: %s\n", m.styles.title.Render(cg.ChordDisplayName())))
 		sb.WriteString(cg.CurrentMarkingPrompt() + "\n")
 		if hintCorrect, hintWrong := cg.MarkingHintInfo(); hintCorrect+hintWrong >= 2 {
 			var hint string
@@ -811,48 +829,47 @@ func (m model) viewChordsMode(cg *game.ChordsGame, opts instrument.RenderOpts) s
 			} else {
 				hint = "Hint: None of your marks are correct yet."
 			}
-			sb.WriteString(styleError.Render(hint) + "\n")
+			sb.WriteString(m.styles.errStyle.Render(hint) + "\n")
 		}
 	case cg.Phase() == game.ChordPhaseNaming:
 		sb.WriteString("Which chord is this? ")
 		sb.WriteString(m.textInput.View() + "\n")
 	case cg.Phase() == game.ChordPhaseIntervals:
-		sb.WriteString(fmt.Sprintf("Chord: %s\n", styleTitle.Render(cg.ChordDisplayName())))
+		sb.WriteString(fmt.Sprintf("Chord: %s\n", m.styles.title.Render(cg.ChordDisplayName())))
 		sb.WriteString(cg.CurrentIntervalPrompt() + " ")
 		sb.WriteString(m.textInput.View() + "\n")
 	case cg.Phase() == game.ChordPhaseComplete:
-		sb.WriteString(fmt.Sprintf("Chord: %s\n", styleTitle.Render(cg.ChordDisplayName())))
-		sb.WriteString(styleSuccess.Render("All intervals found! Press Enter for next chord.") + "\n")
+		sb.WriteString(fmt.Sprintf("Chord: %s\n", m.styles.title.Render(cg.ChordDisplayName())))
+		sb.WriteString(m.styles.success.Render("All intervals found! Press Enter for next chord.") + "\n")
 	}
 
 	if m.feedback != "" {
 		if m.feedbackOK {
-			sb.WriteString(styleSuccess.Render(m.feedback) + "\n")
+			sb.WriteString(m.styles.success.Render(m.feedback) + "\n")
 		} else {
-			sb.WriteString(styleError.Render(m.feedback) + "\n")
+			sb.WriteString(m.styles.errStyle.Render(m.feedback) + "\n")
 		}
 	}
 
 	sb.WriteString("\n")
 	completed, total := cg.Progress()
-	sb.WriteString(renderProgressBar(completed, total, 30) + "\n")
-	sb.WriteString(styleHint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
+	sb.WriteString(m.renderProgressBar(completed, total, 30) + "\n")
+	sb.WriteString(m.styles.hint.Render("Time: "+formatDuration(time.Since(m.gameStartTime))) + "\n\n")
 	if cg.IsMarking() {
-		sb.WriteString(styleHint.Render("hjkl/arrows: move  Space/Enter: mark  Esc: back"))
+		sb.WriteString(m.styles.hint.Render("hjkl/arrows: move  Space/Enter: mark  Esc: back"))
 	} else {
-		sb.WriteString(styleHint.Render("Type answer and press Enter  Esc: back"))
+		sb.WriteString(m.styles.hint.Render("Type answer and press Enter  Esc: back"))
 	}
 	return sb.String()
 }
 
-func renderProgressBar(correct, total, width int) string {
+func (m model) renderProgressBar(correct, total, width int) string {
 	if total == 0 {
 		return ""
 	}
 	filled := correct * width / total
 	pct := correct * 100 / total
-	green := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-	bar := green.Render(strings.Repeat("█", filled)) + strings.Repeat("░", width-filled)
+	bar := m.styles.success.Render(strings.Repeat("█", filled)) + strings.Repeat("░", width-filled)
 	return fmt.Sprintf("Progress: [%s] %d%% (%d/%d)", bar, pct, correct, total)
 }
 
@@ -962,17 +979,13 @@ func main() {
 		return
 	}
 
-	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
+	p := tea.NewProgram(initialModel(nil), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func serveSSH() {
-	// COLORTERM is not forwarded by SSH clients by default, so the server-side
-	// lipgloss renderer falls back to no-color. Force TrueColor for all sessions.
-	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
-
 	addr := "0.0.0.0:2222"
 	hostKey := "/opt/fremorizer/host_key"
 	// Fall back to a local path when running outside of the server environment.
@@ -984,9 +997,9 @@ func serveSSH() {
 		wish.WithAddress(addr),
 		wish.WithHostKeyPath(hostKey),
 		wish.WithMiddleware(
-			wishbt.Middleware(func(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
-				return initialModel(), []tea.ProgramOption{tea.WithAltScreen()}
-			}),
+			wishbt.MiddlewareWithColorProfile(func(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
+				return initialModel(wishbt.MakeRenderer(sess)), []tea.ProgramOption{tea.WithAltScreen()}
+			}, termenv.TrueColor),
 		),
 	)
 	if err != nil {

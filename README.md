@@ -2,6 +2,22 @@
 
 TUI written in go to help you memorize the guitar fretboard utilizing [bubbletea](https://github.com/charmbracelet/bubbletea) TUI framework<br>
 
+You can either explore the fretboard on your own:
+
+<img alt="Free learning" src=".demos/free_learning.gif" width="600" />
+
+You can guess random notes:
+
+<img alt="Guess a random note" src=".demos/guess_random_note.gif" width="600" />
+
+You can find notes in a set of 3 frets:
+
+<img alt="Find notes in a set" src=".demos/fret_set_game.gif" width="600" />
+
+There are a lot of options including different Instruments and custom tunings:
+
+<img alt="Options" src=".demos/options.gif" width="600" />
+
 ## Installation
 
 ### Homebrew / Go install / Binary

@@ -1,3 +1,4 @@
+.bin/
 .claude/
 host_key
 host_key.pub

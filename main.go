@@ -18,6 +18,7 @@ import (
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 	wishbt "github.com/charmbracelet/wish/bubbletea"
+	"github.com/muesli/termenv"
 	"github.com/funkymcb/fremorizer/game"
 	"github.com/funkymcb/fremorizer/instrument"
 )
@@ -968,6 +969,10 @@ func main() {
 }
 
 func serveSSH() {
+	// COLORTERM is not forwarded by SSH clients by default, so the server-side
+	// lipgloss renderer falls back to no-color. Force TrueColor for all sessions.
+	lipgloss.DefaultRenderer().SetColorProfile(termenv.TrueColor)
+
 	addr := "0.0.0.0:2222"
 	hostKey := "/opt/fremorizer/host_key"
 	// Fall back to a local path when running outside of the server environment.

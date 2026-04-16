@@ -28,7 +28,7 @@ You can run the game directly via ssh:
 ssh -p 2222 fremorizer.com
 ```
 
-### Homebrew / Go install / Binary
+### Go install / Binary
 
 **Using `go install`** (requires Go 1.25+):
 

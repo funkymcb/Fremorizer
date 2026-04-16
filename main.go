@@ -1,15 +1,22 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/ssh"
+	"github.com/charmbracelet/wish"
+	wishbt "github.com/charmbracelet/wish/bubbletea"
 	"github.com/funkymcb/fremorizer/game"
 	"github.com/funkymcb/fremorizer/instrument"
 )
@@ -948,8 +955,54 @@ func chordDifficultyLabel(d string) string {
 }
 
 func main() {
-	p := tea.NewProgram(initialModel())
+	for _, arg := range os.Args[1:] {
+		if arg == "--serve-ssh" {
+			serveSSH()
+			return
+		}
+	}
+
+	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func serveSSH() {
+	addr := "0.0.0.0:2222"
+	hostKey := "/opt/fremorizer/host_key"
+	// Fall back to a local path when running outside of the server environment.
+	if _, err := os.Stat(hostKey); os.IsNotExist(err) {
+		hostKey = "./host_key"
+	}
+
+	s, err := wish.NewServer(
+		wish.WithAddress(addr),
+		wish.WithHostKeyPath(hostKey),
+		wish.WithMiddleware(
+			wishbt.Middleware(func(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
+				return initialModel(), []tea.ProgramOption{tea.WithAltScreen()}
+			}),
+		),
+	)
+	if err != nil {
+		log.Fatal("failed to create SSH server:", err)
+	}
+
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	log.Printf("SSH server listening on %s — connect with: ssh -p 2222 <host>", addr)
+	go func() {
+		if err := s.ListenAndServe(); err != nil {
+			log.Fatal(err)
+		}
+	}()
+	<-done
+
+	log.Println("Shutting down...")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := s.Shutdown(ctx); err != nil {
 		log.Fatal(err)
 	}
 }

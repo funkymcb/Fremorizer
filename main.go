@@ -199,19 +199,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) updateModeSelect(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	modes := []string{"single", "fretset", "chords", "freelearning"}
+	modes := []string{"single", "fretset", "chords", "freelearning", "notelist"}
 
 	switch msg.String() {
 	case "ctrl+c", "q":
 		return m, tea.Quit
 	case "up", "k":
-		if m.modeCursor > 0 {
-			m.modeCursor--
-		}
+		m.modeCursor = (m.modeCursor - 1 + len(modes)) % len(modes)
 	case "down", "j":
-		if m.modeCursor < len(modes)-1 {
-			m.modeCursor++
-		}
+		m.modeCursor = (m.modeCursor + 1) % len(modes)
 	case "o":
 		m.state = stateOptions
 		m.optCursor = 0
@@ -403,7 +399,22 @@ func (m model) updatePlaying(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if flGame, ok := m.activeGame.(*game.FreeLearningGame); ok {
 		return m.updateFreeLearningMode(msg, flGame)
 	}
+	if nlGame, ok := m.activeGame.(*game.NoteListGame); ok {
+		return m.updateNoteListMode(msg, nlGame)
+	}
 	return m.updateSingleNoteMode(msg)
+}
+
+func (m model) updateNoteListMode(msg tea.KeyMsg, nlGame *game.NoteListGame) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "ctrl+c", "q":
+		return m, tea.Quit
+	case "esc", "b":
+		m.state = stateModeSelect
+	case "n":
+		nlGame.Shuffle()
+	}
+	return m, nil
 }
 
 func (m model) updateSingleNoteMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -659,6 +670,7 @@ func (m model) viewModeSelect() string {
 		"2. Find notes in a set of 3 frets",
 		"3. Identify chord notes (CAGED system)",
 		"4. Free learning (explore the fretboard)",
+		"5. Note list (random order)",
 	}
 	for i, mode := range modes {
 		if i == m.modeCursor {
@@ -752,6 +764,10 @@ func (m model) viewPlaying() string {
 
 	if flGame, ok := m.activeGame.(*game.FreeLearningGame); ok {
 		return m.viewFreeLearningMode(flGame, opts)
+	}
+
+	if nlGame, ok := m.activeGame.(*game.NoteListGame); ok {
+		return m.viewNoteListMode(nlGame)
 	}
 
 	if fsGame, ok := m.activeGame.(*game.FretSetGameImpl); ok {
@@ -922,6 +938,17 @@ func (m model) viewFreeLearningMode(flGame *game.FreeLearningGame, opts instrume
 
 	sb.WriteString(m.styles.hint.Render("hjkl/arrows: move  Space: reveal note") + "\n")
 	sb.WriteString(m.styles.hint.Render("s: string  f: fret  m: minor scale  M: major scale  r: clear  Esc: back"))
+	return sb.String()
+}
+
+func (m model) viewNoteListMode(nlGame *game.NoteListGame) string {
+	var sb strings.Builder
+	sb.WriteString(m.styles.title.Render("Note List") + "\n\n")
+	for _, note := range nlGame.Notes() {
+		sb.WriteString("  " + note + "\n")
+	}
+	sb.WriteString("\n")
+	sb.WriteString(m.styles.hint.Render("n: shuffle  Esc/b: back  q: quit"))
 	return sb.String()
 }
 

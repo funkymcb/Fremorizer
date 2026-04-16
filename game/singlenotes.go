@@ -13,10 +13,10 @@ type notePos struct{ s, n int }
 // positions stay green. Positions missed after 3 attempts stay red and are
 // retried at the end. The game ends when every position is green.
 type SingleNoteGame struct {
-	inst        *instrument.Instrument
-	cur         notePos   // position currently being asked
-	queue       []notePos // positions yet to be asked this round
-	retryQueue  []notePos // missed positions to retry
+	inst       *instrument.Instrument
+	cur        notePos   // position currently being asked
+	queue      []notePos // positions yet to be asked this round
+	retryQueue []notePos // missed positions to retry
 }
 
 func NewSingleNoteGame(inst *instrument.Instrument) *SingleNoteGame {
@@ -79,7 +79,7 @@ func (g *SingleNoteGame) Progress() (correct, total int) {
 			}
 		}
 	}
-	return
+	return correct, total
 }
 
 // CurrentNoteName returns the name of the note currently being asked.

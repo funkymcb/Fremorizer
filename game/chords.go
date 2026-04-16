@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"math/rand"
+	"slices"
 	"strings"
 
 	"github.com/funkymcb/fremorizer/instrument"
@@ -163,7 +164,7 @@ type chordInterval struct {
 // ChordsGame implements Game for chord-identification mode (mode 3).
 type ChordsGame struct {
 	inst            *instrument.Instrument
-	rootNote        string          // canonical name, e.g., "G" or "C#/Db"
+	rootNote        string // canonical name, e.g., "G" or "C#/Db"
 	isMajor         bool
 	intervals       []chordInterval // [root, third/b3, fifth]
 	currentIdx      int
@@ -360,7 +361,7 @@ func (g *ChordsGame) CurrentIntervalPrompt() string {
 // for the current interval.
 func (g *ChordsGame) MarkingHintInfo() (correct, wrong int) {
 	if g.currentIdx >= len(g.intervals) {
-		return
+		return correct, wrong
 	}
 	symbol := g.intervals[g.currentIdx].symbol
 	for _, s := range g.inst.Strings {
@@ -376,7 +377,7 @@ func (g *ChordsGame) MarkingHintInfo() (correct, wrong int) {
 			}
 		}
 	}
-	return
+	return correct, wrong
 }
 
 // CurrentMarkingPrompt returns the marking instruction for the current interval (medium only).
@@ -395,10 +396,8 @@ func (g *ChordsGame) pickNewChord() {
 	shapes := allCAGEDShapes()
 	rand.Shuffle(len(shapes), func(i, j int) { shapes[i], shapes[j] = shapes[j], shapes[i] })
 
-	for _, shape := range shapes {
-		if g.tryApplyShape(shape) {
-			return
-		}
+	if slices.ContainsFunc(shapes, g.tryApplyShape) {
+		return
 	}
 }
 
@@ -576,7 +575,8 @@ func parseChordInput(input string) (root string, minor bool, ok bool) {
 		root, ok = input[:len(input)-3], true
 	default:
 		// Single trailing "m" for minor — only if what's left is a valid note.
-		if len(lower) > 1 && lower[len(lower)-1] == 'm' {
+		// Use input (not lower) so capital "M" suffix is not caught here.
+		if len(input) > 1 && input[len(input)-1] == 'm' {
 			candidate := input[:len(input)-1]
 			if instrument.IsValidNote(candidate) {
 				root, minor, ok = candidate, true, true

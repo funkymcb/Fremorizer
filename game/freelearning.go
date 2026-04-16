@@ -7,8 +7,10 @@ import (
 	"github.com/funkymcb/fremorizer/instrument"
 )
 
-var majorScaleIntervals = []int{0, 2, 4, 5, 7, 9, 11}
-var minorScaleIntervals = []int{0, 2, 3, 5, 7, 8, 10}
+var (
+	majorScaleIntervals = []int{0, 2, 4, 5, 7, 9, 11}
+	minorScaleIntervals = []int{0, 2, 3, 5, 7, 8, 10}
+)
 
 // FreeLearningGame implements a free-exploration mode (mode 4).
 // No quiz — the player reveals notes, strings, frets, or scales at will.
@@ -28,8 +30,8 @@ func NewFreeLearningGame(inst *instrument.Instrument) *FreeLearningGame {
 }
 
 // Game interface stubs — no quiz mechanics in this mode.
-func (g *FreeLearningGame) CheckAnswer(string) bool            { return false }
-func (g *FreeLearningGame) Next() error                        { return nil }
+func (g *FreeLearningGame) CheckAnswer(string) bool               { return false }
+func (g *FreeLearningGame) Next() error                           { return nil }
 func (g *FreeLearningGame) GetInstrument() *instrument.Instrument { return g.inst }
 
 // ── cursor ─────────────────────────────────────────────────────────────────────
@@ -128,20 +130,11 @@ func (g *FreeLearningGame) RevealScale(minor bool) {
 	}
 
 	// Fret window: one fret back, four frets forward.
-	minFret := g.cursorFret - 1
-	if minFret < 1 {
-		minFret = 1
-	}
-	maxFret := g.cursorFret + 4
-	if maxFret > g.inst.Frets {
-		maxFret = g.inst.Frets
-	}
+	minFret := max(g.cursorFret-1, 1)
+	maxFret := min(g.cursorFret+4, g.inst.Frets)
 
 	// Strings: cursor string and up to 2 higher-pitched strings above it.
-	strStart := g.cursorString - 2
-	if strStart < 0 {
-		strStart = 0
-	}
+	strStart := max(g.cursorString-2, 0)
 
 	// Collect matching positions.
 	type pos struct{ si, fi int }

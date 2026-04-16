@@ -7,7 +7,6 @@ import (
 
 type Note struct {
 	Name           string
-	Hidden         bool
 	ToBeDetermined bool
 	Marked         bool   // mode 2: player marked this position
 	Solved         bool   // mode 2/3: correctly found, shown in green
@@ -55,13 +54,25 @@ func NoteToSemitone(name string) int {
 }
 
 // IsValidNote returns true if the input is a recognised note name.
+// Accepts natural notes ("C", "c"), sharps ("C#", "c#"), and flat aliases
+// ("Db", "db", "Bb", "bb") — matching is case-insensitive.
 func IsValidNote(input string) bool {
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return false
 	}
-	_, ok := noteIndexMap[strings.ToUpper(input)]
-	return ok
+	// Single/multi-char uppercase (handles "C" → "C", "C#" → "C#").
+	if _, ok := noteIndexMap[strings.ToUpper(input)]; ok {
+		return true
+	}
+	// Title-case (handles flat aliases stored as "Db", "Bb" in the map:
+	// "db" and "DB" both normalise to "Db").
+	if len(input) == 2 {
+		title := strings.ToUpper(input[:1]) + strings.ToLower(input[1:])
+		_, ok := noteIndexMap[title]
+		return ok
+	}
+	return false
 }
 
 // NoteMatches checks if an answer matches a note name (handles sharps/flats).
@@ -71,8 +82,8 @@ func NoteMatches(noteName, answer string) bool {
 	}
 	answer = strings.ToLower(strings.TrimSpace(answer))
 	// canonical name like "C#/Db" -> ["c#", "db"]
-	parts := strings.Split(strings.ToLower(noteName), "/")
-	for _, part := range parts {
+	parts := strings.SplitSeq(strings.ToLower(noteName), "/")
+	for part := range parts {
 		if part == answer {
 			return true
 		}

@@ -41,7 +41,7 @@ func initStrings(tuning []string, frets int) ([]InstrumentString, error) {
 			if err != nil {
 				return nil, fmt.Errorf("string %d fret %d: %v", i+1, fret, err)
 			}
-			notes[fret] = Note{Name: name, Hidden: true}
+			notes[fret] = Note{Name: name}
 		}
 		strs[rev] = InstrumentString{Notes: notes}
 	}

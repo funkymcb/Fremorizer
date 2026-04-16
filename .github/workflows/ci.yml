@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      contents: read  # minimum required — no write access needed
+      contents: read # minimum required — no write access needed
 
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +30,9 @@ jobs:
 
       - name: Vet
         run: go vet ./...
+
+      - name: Test
+        run: go test ./...
 
       - name: Build
         run: CGO_ENABLED=0 go build ./...

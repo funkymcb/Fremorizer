@@ -18,9 +18,9 @@ import (
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 	wishbt "github.com/charmbracelet/wish/bubbletea"
-	"github.com/muesli/termenv"
 	"github.com/funkymcb/fremorizer/game"
 	"github.com/funkymcb/fremorizer/instrument"
+	"github.com/muesli/termenv"
 )
 
 // ── styles ────────────────────────────────────────────────────────────────────
@@ -449,7 +449,7 @@ func (m model) updateSingleNoteMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.activeGame.CheckAnswer(input) {
 			noteName := snGame.CurrentNoteName()
 			snGame.RevealNote(true)
-			snGame.Next() //nolint
+			_ = snGame.Next()
 			m.wrongGuesses = 0
 			m.textInput.Reset()
 			if snGame.IsGameOver() {
@@ -566,7 +566,7 @@ func (m model) updateChordsMode(msg tea.KeyMsg, cg *game.ChordsGame) (tea.Model,
 			cs, cf := cg.GetCursor()
 			cg.ToggleMark(cs, cf)
 			if cg.IsMarkingComplete() {
-				cg.Next() //nolint
+				_ = cg.Next()
 				m.feedback = ""
 			}
 		}
@@ -576,7 +576,7 @@ func (m model) updateChordsMode(msg tea.KeyMsg, cg *game.ChordsGame) (tea.Model,
 	switch msg.String() {
 	case "enter":
 		if cg.Phase() == game.ChordPhaseComplete {
-			cg.Next() //nolint
+			_ = cg.Next()
 			if cg.IsGameOver() {
 				elapsed := time.Since(m.gameStartTime)
 				_, total := cg.Progress()
@@ -1068,15 +1068,18 @@ func serveSSH() {
 		log.Fatal("failed to create SSH server:", err)
 	}
 
-	done := make(chan os.Signal, 1)
-	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	log.Printf("SSH server listening on %s — connect with: ssh -p 2222 <host>", addr)
-	go func() {
-		if err := s.ListenAndServe(); err != nil {
-			log.Fatal(err)
-		}
-	}()
-	<-done
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- s.ListenAndServe() }()
+
+	select {
+	case err := <-errCh:
+		log.Fatal("SSH server error:", err)
+	case <-quit:
+	}
 
 	log.Println("Shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

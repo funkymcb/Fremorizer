@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -955,11 +956,9 @@ func chordDifficultyLabel(d string) string {
 }
 
 func main() {
-	for _, arg := range os.Args[1:] {
-		if arg == "--serve-ssh" {
-			serveSSH()
-			return
-		}
+	if slices.Contains(os.Args[1:], "--serve-ssh") {
+		serveSSH()
+		return
 	}
 
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())

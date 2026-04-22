@@ -76,6 +76,7 @@ const (
 	optItemFretSetMode
 	optItemChordDifficulty
 	optItemChordCount
+	optItemNoteListAccidentals
 	optItemBack
 	optItemCount
 )
@@ -111,8 +112,9 @@ type model struct {
 	tuning            []string
 	frets             int
 	fretSetSequential bool
-	chordDifficulty   string // "easy", "medium", "hard"
-	chordCount        int    // number of chords to find per session
+	chordDifficulty      string // "easy", "medium", "hard"
+	chordCount           int    // number of chords to find per session
+	noteListAccidentals  string // "both", "sharps", "flats"
 
 	// active game
 	selectedMode  int
@@ -147,8 +149,9 @@ func initialModel(renderer *lipgloss.Renderer) model {
 		tuning:            instrument.DefaultGuitarTuning(6),
 		frets:             12,
 		fretSetSequential: true,
-		chordDifficulty:   "easy",
-		chordCount:        20,
+		chordDifficulty:     "easy",
+		chordCount:          20,
+		noteListAccidentals: "both",
 		textInput:         ti,
 		tuneInput:         tuneInput,
 	}
@@ -239,9 +242,10 @@ func (m model) startGame(mode string) (tea.Model, tea.Cmd) {
 	}
 
 	g, err := game.New(mode, inst, map[string]any{
-		"sequential": m.fretSetSequential,
-		"difficulty": m.chordDifficulty,
-		"chordCount": m.chordCount,
+		"sequential":  m.fretSetSequential,
+		"difficulty":  m.chordDifficulty,
+		"chordCount":  m.chordCount,
+		"accidentals": m.noteListAccidentals,
 	})
 	if err != nil {
 		m.feedback = fmt.Sprintf("Error: %v", err)
@@ -256,7 +260,7 @@ func (m model) startGame(mode string) (tea.Model, tea.Cmd) {
 	m.revealed = false
 	m.textInput.Reset()
 	m.textInput.Focus()
-	return m, nil
+	return m, tea.ClearScreen
 }
 
 func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -265,14 +269,11 @@ func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	case "esc", "b", "q":
 		m.state = stateModeSelect
+		return m, tea.ClearScreen
 	case "up", "k":
-		if m.optCursor > 0 {
-			m.optCursor--
-		}
+		m.optCursor = (m.optCursor - 1 + int(optItemCount)) % int(optItemCount)
 	case "down", "j":
-		if m.optCursor < int(optItemCount)-1 {
-			m.optCursor++
-		}
+		m.optCursor = (m.optCursor + 1) % int(optItemCount)
 	case "enter", " ", "+", "=", "right", "l":
 		switch optItem(m.optCursor) {
 		case optItemInstrument:
@@ -299,6 +300,8 @@ func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.chordCount < 99 {
 				m.chordCount++
 			}
+		case optItemNoteListAccidentals:
+			m.noteListAccidentals = nextAccidentals(m.noteListAccidentals)
 		case optItemBack:
 			m.state = stateModeSelect
 		}
@@ -324,6 +327,8 @@ func (m model) updateOptions(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.chordCount > 1 {
 				m.chordCount--
 			}
+		case optItemNoteListAccidentals:
+			m.noteListAccidentals = prevAccidentals(m.noteListAccidentals)
 		}
 	}
 
@@ -411,6 +416,7 @@ func (m model) updateNoteListMode(msg tea.KeyMsg, nlGame *game.NoteListGame) (te
 		return m, tea.Quit
 	case "esc", "b":
 		m.state = stateModeSelect
+		return m, tea.ClearScreen
 	case "n":
 		nlGame.Shuffle()
 	}
@@ -426,7 +432,7 @@ func (m model) updateSingleNoteMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.state = stateModeSelect
 		m.feedback = ""
-		return m, nil
+		return m, tea.ClearScreen
 	case "enter":
 		if m.revealed {
 			// advance to next note; name disappears, color fill stays
@@ -515,7 +521,7 @@ func (m model) updateFretSetMode(msg tea.KeyMsg, fsGame *game.FretSetGameImpl) (
 	case "esc":
 		m.state = stateModeSelect
 		m.feedback = ""
-		return m, nil
+		return m, tea.ClearScreen
 	case "up", "k":
 		fsGame.MoveCursor(-1, 0)
 	case "down", "j":
@@ -559,7 +565,7 @@ func (m model) updateChordsMode(msg tea.KeyMsg, cg *game.ChordsGame) (tea.Model,
 	case "esc":
 		m.state = stateModeSelect
 		m.feedback = ""
-		return m, nil
+		return m, tea.ClearScreen
 	}
 
 	// Medium difficulty: cursor-marking sub-phase.
@@ -670,7 +676,7 @@ func (m model) viewModeSelect() string {
 		"2. Find notes in a set of 3 frets",
 		"3. Identify chord notes (CAGED system)",
 		"4. Free learning (explore the fretboard)",
-		"5. Note list (random order)",
+		"5. Simple random note list",
 	}
 	for i, mode := range modes {
 		if i == m.modeCursor {
@@ -709,6 +715,7 @@ func (m model) viewOptions() string {
 		fmt.Sprintf("Fret set mode:   %s", fretSetModeLabel),
 		fmt.Sprintf("Chord mode:      %s", chordDiffLabel),
 		fmt.Sprintf("Chord count:     %d  (range: 1-99)", m.chordCount),
+		fmt.Sprintf("Note list:       %s", noteListAccidentalsLabel(m.noteListAccidentals)),
 		"Back",
 	}
 
@@ -894,7 +901,7 @@ func (m model) updateFreeLearningMode(msg tea.KeyMsg, flGame *game.FreeLearningG
 	case "esc":
 		m.state = stateModeSelect
 		m.feedback = ""
-		return m, nil
+		return m, tea.ClearScreen
 	case "up", "k":
 		flGame.MoveCursor(-1, 0)
 	case "down", "j":
@@ -944,8 +951,18 @@ func (m model) viewFreeLearningMode(flGame *game.FreeLearningGame, opts instrume
 func (m model) viewNoteListMode(nlGame *game.NoteListGame) string {
 	var sb strings.Builder
 	sb.WriteString(m.styles.title.Render("Note List") + "\n\n")
-	for _, note := range nlGame.Notes() {
-		sb.WriteString("  " + note + "\n")
+
+	notes := nlGame.Notes()
+	maxLen := 0
+	for _, n := range notes {
+		if len(n) > maxLen {
+			maxLen = len(n)
+		}
+	}
+
+	for _, note := range notes {
+		leftPad := strings.Repeat(" ", (maxLen-len(note))/2)
+		sb.WriteString(fmt.Sprintf("\t\t%s%s\n", leftPad, note))
 	}
 	sb.WriteString("\n")
 	sb.WriteString(m.styles.hint.Render("n: shuffle  Esc/b: back  q: quit"))
@@ -1027,6 +1044,39 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%ds", s)
 	}
 	return fmt.Sprintf("%dm %02ds", s/60, s%60)
+}
+
+func noteListAccidentalsLabel(a string) string {
+	switch a {
+	case "sharps":
+		return "sharps only (C#, D#, …)"
+	case "flats":
+		return "flats only (Db, Eb, …)"
+	default:
+		return "both (sharps and flats)"
+	}
+}
+
+func nextAccidentals(cur string) string {
+	switch cur {
+	case "both":
+		return "sharps"
+	case "sharps":
+		return "flats"
+	default:
+		return "both"
+	}
+}
+
+func prevAccidentals(cur string) string {
+	switch cur {
+	case "both":
+		return "flats"
+	case "flats":
+		return "sharps"
+	default:
+		return "both"
+	}
 }
 
 func nextChordDifficulty(cur string) string {

@@ -504,6 +504,7 @@ function scaleNotes(root, intervals) {
    CHORD DATA  (s = display string 0-5)
 ═══════════════════════════════════════ */
 const CHORD_SHAPES = [
+  // ── open position ─────────────────────────────────────────────────────────
   { name:'E major', positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:2,iv:'1'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
   { name:'A major', positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:2,iv:'1'},{s:1,f:2,iv:'3'},{s:0,f:0,iv:'5'}] },
   { name:'D major', positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:3,iv:'1'},{s:0,f:2,iv:'3'}] },
@@ -512,14 +513,29 @@ const CHORD_SHAPES = [
   { name:'E minor', positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:2,iv:'1'},{s:2,f:0,iv:'b3'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
   { name:'A minor', positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:2,iv:'1'},{s:1,f:1,iv:'b3'},{s:0,f:0,iv:'5'}] },
   { name:'D minor', positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:3,iv:'1'},{s:0,f:1,iv:'b3'}] },
-  { name:'F major', positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:3,iv:'1'},{s:2,f:2,iv:'3'},{s:1,f:1,iv:'5'},{s:0,f:1,iv:'1'}] },
-  { name:'B minor', positions:[{s:4,f:2,iv:'1'},{s:3,f:4,iv:'5'},{s:2,f:4,iv:'1'},{s:1,f:3,iv:'b3'},{s:0,f:2,iv:'5'}] },
-  { name:'G minor', positions:[{s:5,f:3,iv:'1'},{s:4,f:5,iv:'5'},{s:3,f:5,iv:'1'},{s:2,f:4,iv:'b3'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
-  { name:'C minor', positions:[{s:4,f:3,iv:'1'},{s:3,f:5,iv:'5'},{s:2,f:5,iv:'1'},{s:1,f:4,iv:'b3'},{s:0,f:3,iv:'5'}] },
-  { name:'B major', positions:[{s:4,f:2,iv:'1'},{s:3,f:4,iv:'5'},{s:2,f:4,iv:'1'},{s:1,f:4,iv:'3'},{s:0,f:2,iv:'5'}] },
-  { name:'G7',      positions:[{s:5,f:3,iv:'1'},{s:4,f:2,iv:'3'},{s:3,f:0,iv:'5'},{s:2,f:0,iv:'1'},{s:1,f:0,iv:'3'},{s:0,f:1,iv:'b7'}] },
+  { name:'E7',      positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:0,iv:'b7'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
+  { name:'A7',      positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:0,iv:'b7'},{s:1,f:2,iv:'3'},{s:0,f:0,iv:'5'}] },
   { name:'D7',      positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:1,iv:'b7'},{s:0,f:2,iv:'3'}] },
+  { name:'G7',      positions:[{s:5,f:3,iv:'1'},{s:4,f:2,iv:'3'},{s:3,f:0,iv:'5'},{s:2,f:0,iv:'1'},{s:1,f:0,iv:'3'},{s:0,f:1,iv:'b7'}] },
+  // ── E-shape barre chords ──────────────────────────────────────────────────
+  { name:'F major',  positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:3,iv:'1'},{s:2,f:2,iv:'3'},{s:1,f:1,iv:'5'},{s:0,f:1,iv:'1'}] },
+  { name:'F# major', positions:[{s:5,f:2,iv:'1'},{s:4,f:4,iv:'5'},{s:3,f:4,iv:'1'},{s:2,f:3,iv:'3'},{s:1,f:2,iv:'5'},{s:0,f:2,iv:'1'}] },
+  { name:'G# major', positions:[{s:5,f:4,iv:'1'},{s:4,f:6,iv:'5'},{s:3,f:6,iv:'1'},{s:2,f:5,iv:'3'},{s:1,f:4,iv:'5'},{s:0,f:4,iv:'1'}] },
+  { name:'F minor',  positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:3,iv:'1'},{s:2,f:1,iv:'b3'},{s:1,f:1,iv:'5'},{s:0,f:1,iv:'1'}] },
+  { name:'F# minor', positions:[{s:5,f:2,iv:'1'},{s:4,f:4,iv:'5'},{s:3,f:4,iv:'1'},{s:2,f:2,iv:'b3'},{s:1,f:2,iv:'5'},{s:0,f:2,iv:'1'}] },
+  { name:'G# minor', positions:[{s:5,f:4,iv:'1'},{s:4,f:6,iv:'5'},{s:3,f:6,iv:'1'},{s:2,f:4,iv:'b3'},{s:1,f:4,iv:'5'},{s:0,f:4,iv:'1'}] },
+  // ── A-shape barre chords ──────────────────────────────────────────────────
+  { name:'Bb major', positions:[{s:4,f:1,iv:'1'},{s:3,f:3,iv:'5'},{s:2,f:3,iv:'1'},{s:1,f:3,iv:'3'},{s:0,f:1,iv:'5'}] },
+  { name:'B major',  positions:[{s:4,f:2,iv:'1'},{s:3,f:4,iv:'5'},{s:2,f:4,iv:'1'},{s:1,f:4,iv:'3'},{s:0,f:2,iv:'5'}] },
+  { name:'C# major', positions:[{s:4,f:4,iv:'1'},{s:3,f:6,iv:'5'},{s:2,f:6,iv:'1'},{s:1,f:6,iv:'3'},{s:0,f:4,iv:'5'}] },
+  { name:'Eb major', positions:[{s:4,f:6,iv:'1'},{s:3,f:8,iv:'5'},{s:2,f:8,iv:'1'},{s:1,f:8,iv:'3'},{s:0,f:6,iv:'5'}] },
+  { name:'B minor',  positions:[{s:4,f:2,iv:'1'},{s:3,f:4,iv:'5'},{s:2,f:4,iv:'1'},{s:1,f:3,iv:'b3'},{s:0,f:2,iv:'5'}] },
+  { name:'C minor',  positions:[{s:4,f:3,iv:'1'},{s:3,f:5,iv:'5'},{s:2,f:5,iv:'1'},{s:1,f:4,iv:'b3'},{s:0,f:3,iv:'5'}] },
+  { name:'C# minor', positions:[{s:4,f:4,iv:'1'},{s:3,f:6,iv:'5'},{s:2,f:6,iv:'1'},{s:1,f:5,iv:'b3'},{s:0,f:4,iv:'5'}] },
+  { name:'G minor',  positions:[{s:5,f:3,iv:'1'},{s:4,f:5,iv:'5'},{s:3,f:5,iv:'1'},{s:2,f:3,iv:'b3'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
 ];
+
+const CHORD_GOAL = 20;
 
 function shuffleArr(arr) {
   const a = [...arr];
@@ -1021,6 +1037,60 @@ function FindNotesGame({ onBack, tweaks }) {
   );
 }
 
+// ── interval helpers ──────────────────────────────────────────────────────────
+const IV_ORDER = ['1','b3','3','5','b7'];
+const IV_LABEL = {
+  '1':  'root note (1)',
+  'b3': 'minor third (b3)',
+  '3':  'major third (3)',
+  '5':  'perfect fifth (5)',
+  'b7': 'minor seventh (b7)',
+};
+
+function buildChordIntervals(chord) {
+  const seen = new Set();
+  const result = [];
+  for (const sym of IV_ORDER) {
+    const pos = chord.positions.find(p => p.iv === sym);
+    if (pos && !seen.has(sym)) {
+      seen.add(sym);
+      result.push({ symbol: sym, note: noteAt(pos.s, pos.f) });
+    }
+  }
+  return result;
+}
+
+// ── chord name matching helpers ───────────────────────────────────────────────
+const CHORD_ENHARMONIC = {
+  'c#':'db','db':'c#','d#':'eb','eb':'d#',
+  'f#':'gb','gb':'f#','g#':'ab','ab':'g#',
+  'a#':'bb','bb':'a#',
+};
+
+function expandChordInput(s) {
+  return s.replace(/maj$/, ' major').replace(/min$/, ' minor').replace(/m$/, ' minor')
+    .trim().replace(/\s+/g,' ');
+}
+
+function matchesChordName(input, cname) {
+  const exp = expandChordInput(input);
+  if (input === cname || exp === cname) return true;
+  if (cname.endsWith(' major')) {
+    const root = cname.replace(' major', '');
+    if (input === root || exp === root) return true;
+  }
+  return false;
+}
+
+function chordNameCorrect(norm, name) {
+  if (matchesChordName(norm, name)) return true;
+  const rootMatch = name.match(/^([a-g][#b]?)/);
+  const nameRoot  = rootMatch?.[1];
+  const ehRoot    = nameRoot && CHORD_ENHARMONIC[nameRoot];
+  const ehName    = ehRoot ? ehRoot + name.slice(nameRoot.length) : null;
+  return !!(ehName && matchesChordName(norm, ehName));
+}
+
 /* ═══════════════════════════════════════
    GAME MODE 3: CHORD IDENTIFICATION
 ═══════════════════════════════════════ */
@@ -1030,39 +1100,109 @@ function ChordGame({ onBack, tweaks }) {
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState(null);
   const [score, setScore] = useState(0);
-  const [time, startTimer] = useTimer();
+  const [finished, setFinished] = useState(false);
+  const [phase, setPhase] = useState('naming');       // 'naming' | 'intervals'
+  const [intervals, setIntervals] = useState([]);
+  const [intervalIdx, setIntervalIdx] = useState(0);
+  const [solvedSymbols, setSolvedSymbols] = useState(new Set());
+  const [time, startTimer, stopTimer] = useTimer();
   const inputRef = useRef(null);
 
   useEffect(() => { startTimer(); }, []);
-  useEffect(() => { inputRef.current?.focus(); }, [ci]);
+  useEffect(() => { inputRef.current?.focus(); }, [ci, phase, intervalIdx]);
 
   const chord = chords[ci % chords.length];
 
-  function submit() {
-    if (!input.trim()) return;
-    const norm = input.trim().toLowerCase().replace(/\s+/g,' ');
-    const name = chord.name.toLowerCase();
-    // Accept chord name substrings (e.g. "e" for "E major", "am" for "A minor")
-    const aliases = {
-      'maj':' major','min':' minor','m ':' minor',
-    };
-    let in2 = norm;
-    for(const [k,v] of Object.entries(aliases)) in2 = in2.replace(k,v);
-    const correct = in2===name || norm===name ||
-      (norm.length>0 && name.replace(' ','').startsWith(norm.replace(' ','')));
-    if (correct) {
-      setScore(s=>s+1);
-      setFeedback('correct');
-      setTimeout(() => { setFeedback(null); setInput(''); setCi(c=>c+1); }, 700);
+  function advanceToNextChord(newScore) {
+    if (newScore >= CHORD_GOAL) {
+      stopTimer();
+      setTimeout(() => setFinished(true), 700);
     } else {
-      setFeedback('wrong');
-      setTimeout(() => setFeedback(null), 1200);
+      setTimeout(() => {
+        setFeedback(null); setInput('');
+        setCi(c => c + 1);
+        setPhase('naming');
+        setSolvedSymbols(new Set());
+      }, 700);
     }
   }
 
-  const markers = chord.positions.map(({s,f,iv}) => ({
-    s, f, type:'interval', label: iv
-  }));
+  function submit() {
+    if (!input.trim()) return;
+
+    if (phase === 'naming') {
+      const norm = input.trim().toLowerCase().replace(/\s+/g,' ');
+      if (chordNameCorrect(norm, chord.name.toLowerCase())) {
+        setFeedback('correct');
+        const ivs = buildChordIntervals(chord);
+        setTimeout(() => {
+          setFeedback(null); setInput('');
+          setIntervals(ivs);
+          setIntervalIdx(0);
+          setSolvedSymbols(new Set());
+          setPhase('intervals');
+        }, 600);
+      } else {
+        setFeedback('wrong');
+        setTimeout(() => { setFeedback(null); setInput(''); inputRef.current?.focus(); }, 1200);
+      }
+      return;
+    }
+
+    // intervals phase
+    const current = intervals[intervalIdx];
+    if (!current) return;
+    if (matchNote(input, current.note)) {
+      const newSolved = new Set(solvedSymbols);
+      newSolved.add(current.symbol);
+      setSolvedSymbols(newSolved);
+      setFeedback('correct');
+      const nextIdx = intervalIdx + 1;
+      if (nextIdx >= intervals.length) {
+        const newScore = score + 1;
+        setScore(newScore);
+        advanceToNextChord(newScore);
+      } else {
+        setTimeout(() => { setFeedback(null); setInput(''); setIntervalIdx(nextIdx); }, 600);
+      }
+    } else {
+      setFeedback('wrong');
+      setTimeout(() => { setFeedback(null); setInput(''); inputRef.current?.focus(); }, 1200);
+    }
+  }
+
+  if (finished) return (
+    <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:32}}>
+      <div style={{fontSize:'clamp(2rem,5vw,3rem)',fontWeight:900,fontStyle:'italic',color:'var(--gold)',textShadow:'0 0 40px rgba(200,144,48,0.4)'}}>
+        Well Done!
+      </div>
+      <div style={{fontFamily:'DM Mono',fontSize:'0.85rem',color:'var(--text-dim)',letterSpacing:'0.1em'}}>
+        You identified {CHORD_GOAL} chords
+      </div>
+      <div style={{display:'flex',gap:40,justifyContent:'center',fontFamily:'DM Mono',fontSize:'0.8rem',color:'var(--text-dim)'}}>
+        <span><span style={{color:'var(--text-muted)'}}>time </span>{time}s</span>
+        <span><span style={{color:'var(--text-muted)'}}>chords </span>{CHORD_GOAL}</span>
+        <span><span style={{color:'var(--text-muted)'}}>avg/chord </span>{(time/CHORD_GOAL).toFixed(1)}s</span>
+      </div>
+      <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
+      <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
+        ← back to menu
+      </button>
+    </div>
+  );
+
+  // During interval phase: hide labels on unsolved dots, reveal note names on solved ones
+  const markers = chord.positions.map(({s, f, iv}) => {
+    if (phase === 'naming') return { s, f, type:'interval', label: iv };
+    const solved = solvedSymbols.has(iv);
+    return {
+      s, f,
+      type:  solved ? 'correct' : 'interval',
+      label: solved ? showNote(noteAt(s, f), tweaks.noteStyle) : '',
+    };
+  });
+
+  const currentIv = phase === 'intervals' ? intervals[intervalIdx] : null;
 
   return (
     <div className="game-wrap">
@@ -1076,36 +1216,56 @@ function ChordGame({ onBack, tweaks }) {
       </div>
 
       <div className="input-area">
-        <div className="prompt-text">Which chord is this?</div>
-        <div className="note-input-row">
-          <input
-            ref={inputRef}
-            className={`note-input chord-input-wide ${feedback||''}`}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && submit()}
-            placeholder="chord name…"
-            disabled={!!feedback}
-            autoComplete="off" spellCheck="false"
-          />
-          <button className="submit-btn" onClick={submit}>Enter ↵</button>
-        </div>
-        <div className={`feedback-msg ${feedback||''}`}>
-          {feedback==='correct' && '✓ Correct!'}
-          {feedback==='wrong' && `✗ Answer: ${chord.name}`}
-        </div>
-        <div style={{fontFamily:'DM Mono',fontSize:'0.68rem',color:'var(--text-muted)',marginTop:4}}>
-          Numbers show chord intervals: 1=root, 3=third, 5=fifth, b3=minor 3rd, b7=minor 7th
-        </div>
+        {phase === 'naming' ? (<>
+          <div className="prompt-text">Which chord is this?</div>
+          <div className="note-input-row">
+            <input ref={inputRef}
+              className={`note-input chord-input-wide ${feedback||''}`}
+              value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && submit()}
+              placeholder="chord name…" disabled={feedback==='correct'}
+              autoComplete="off" spellCheck="false"/>
+            <button className="submit-btn" onClick={submit}>Enter ↵</button>
+          </div>
+          <div className={`feedback-msg ${feedback||''}`}>
+            {feedback==='correct' && '✓ Correct!'}
+            {feedback==='wrong' && '✗ Wrong, try again!'}
+          </div>
+          <div style={{fontFamily:'DM Mono',fontSize:'0.68rem',color:'var(--text-muted)',marginTop:4}}>
+            Numbers show intervals: 1=root  3=major 3rd  b3=minor 3rd  5=fifth  b7=minor 7th
+          </div>
+        </>) : (<>
+          <div style={{fontFamily:'DM Mono',fontSize:'0.75rem',color:'var(--text-muted)',marginBottom:6}}>
+            Chord: <span style={{color:'var(--gold)',fontWeight:700}}>{chord.name}</span>
+            &nbsp;·&nbsp;{solvedSymbols.size}/{intervals.length} intervals found
+          </div>
+          <div className="prompt-text">
+            What is the <span style={{color:'var(--gold)'}}>{currentIv && IV_LABEL[currentIv.symbol]}</span>?
+          </div>
+          <div className="note-input-row">
+            <input ref={inputRef}
+              className={`note-input ${feedback||''}`}
+              value={input} onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && submit()}
+              placeholder="note…" maxLength={4}
+              disabled={feedback==='correct'}
+              autoComplete="off" spellCheck="false"/>
+            <button className="submit-btn" onClick={submit}>Enter ↵</button>
+          </div>
+          <div className={`feedback-msg ${feedback||''}`}>
+            {feedback==='correct' && '✓ Correct!'}
+            {feedback==='wrong' && '✗ Wrong, try again!'}
+          </div>
+        </>)}
       </div>
 
       <div className="progress-bar-wrap">
         <div className="progress-label">
           <span>Progress</span>
-          <span>{score}/{chords.length}</span>
+          <span>{score}/{CHORD_GOAL}</span>
         </div>
         <div className="progress-track">
-          <div className="progress-fill" style={{width:`${(score/chords.length)*100}%`}}/>
+          <div className="progress-fill" style={{width:`${(score/CHORD_GOAL)*100}%`}}/>
         </div>
       </div>
 

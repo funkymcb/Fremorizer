@@ -62,6 +62,17 @@ go build -o fremorizer .
 ./fremorizer
 ```
 
+### Run the game
+
+You can either run the TUI directly:<br>
+`go run .`
+
+Spawn an ssh server:<br>
+`go run . --serve-ssh`
+
+Or spawn an http server:<br>
+`go run . --serve-http`
+
 <!-- ## Structure -->
 
 <!---->

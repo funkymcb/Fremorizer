@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fremorizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+  --bg: #0b0704;
+  --surface: #160e08;
+  --board: #2a1608;
+  --board2: #3a2010;
+  --fret: #9a7428;
+  --nut: #d8c888;
+  --string: #c8a030;
+  --inlay: rgba(240,220,180,0.35);
+  --text: #f0ddb8;
+  --text-dim: #7a6840;
+  --text-muted: #4a3c28;
+  --gold: #c89030;
+  --gold-dim: #7a5820;
+  --correct: #5a8a40;
+  --wrong: #a83028;
+  --selected: rgba(200,144,48,0.25);
+  --border: rgba(200,144,48,0.2);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg);
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  color: var(--text);
+  font-family: 'Playfair Display', Georgia, serif;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-x: hidden;
+}
+
+/* --- MENU --- */
+.menu-wrap {
+  text-align: center;
+  max-width: 640px;
+  width: 100%;
+  animation: fadeIn 0.5s ease;
+}
+.menu-logo {
+  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  text-shadow: 0 0 40px rgba(200,144,48,0.3);
+  margin-bottom: 4px;
+  font-style: italic;
+}
+.menu-tagline {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 48px;
+}
+.menu-divider {
+  width: 80px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin: 0 auto 48px;
+}
+.menu-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.menu-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 14px 24px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+}
+.menu-item:hover, .menu-item.active {
+  border-color: var(--border);
+  background: var(--selected);
+}
+.menu-item.active { border-color: rgba(200,144,48,0.5); }
+.menu-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+  color: var(--gold-dim);
+  min-width: 20px;
+}
+.menu-label { font-size: 1.05rem; color: var(--text); }
+.menu-hint {
+  margin-top: 48px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+}
+.menu-hint span { color: var(--gold-dim); }
+
+.amp-panel {
+  margin-top: 48px;
+  border: 2px solid #6a4a1a;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #1a0e06 0%, #0f0804 100%);
+  box-shadow:
+    0 0 0 1px #3a2808,
+    inset 0 1px 0 rgba(200,144,48,0.08),
+    0 4px 24px rgba(0,0,0,0.6);
+  padding: 18px 28px 16px;
+  position: relative;
+}
+.amp-panel::before {
+  content: '';
+  position: absolute; top: -1px; left: 20px; right: 20px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(200,144,48,0.4), transparent);
+}
+.amp-panel::after {
+  content: '';
+  position: absolute; bottom: -1px; left: 20px; right: 20px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(200,144,48,0.2), transparent);
+}
+.amp-label {
+  position: absolute;
+  top: -10px; left: 50%; transform: translateX(-50%);
+  background: #0f0804;
+  padding: 0 10px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.6rem;
+  color: var(--gold-dim);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.amp-screws {
+  position: absolute;
+  top: 8px; left: 10px; right: 10px;
+  display: flex; justify-content: space-between;
+  pointer-events: none;
+}
+.amp-screw {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #8a6830, #3a2810);
+  border: 1px solid #2a1c08;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07);
+}
+.amp-content {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.8;
+  letter-spacing: 0.05em;
+  text-align: center;
+  margin-top: 6px;
+}
+.amp-content a {
+  color: var(--gold-dim);
+  text-decoration: none;
+  transition: color 0.15s;
+}
+.amp-content a:hover { color: var(--gold); }
+.amp-content .amp-cmd {
+  display: inline-block;
+  background: rgba(200,144,48,0.08);
+  border: 1px solid rgba(200,144,48,0.2);
+  border-radius: 3px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-top: 2px;
+  letter-spacing: 0.06em;
+}
+/* --- GAME SCREEN --- */
+.game-wrap {
+  width: 100%;
+  max-width: 1080px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  animation: fadeIn 0.35s ease;
+}
+.game-header {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.game-title {
+  font-size: 0.7rem;
+  font-family: 'DM Mono', monospace;
+  color: var(--text-dim);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.back-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  letter-spacing: 0.1em;
+  background: rgba(200,144,48,0.08);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  padding: 6px 14px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.back-btn:hover { color: var(--gold); background: rgba(200,144,48,0.16); border-color: var(--gold-dim); }
+
+/* --- FRETBOARD WRAPPER --- */
+.fretboard-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 0;
+  display: flex;
+  justify-content: center;
+}
+.fretboard-wrap svg { display: block; }
+
+/* --- INPUT AREA --- */
+.input-area {
+  display: flex; flex-direction: column; align-items: center; gap: 12px;
+  width: 100%;
+}
+.prompt-text {
+  font-size: 1.2rem;
+  color: var(--text);
+  font-style: italic;
+}
+.note-input-row { display: flex; gap: 10px; align-items: center; }
+.note-input {
+  background: var(--surface);
+  border: 1px solid var(--gold-dim);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  font-size: 1.4rem;
+  text-align: center;
+  width: 120px;
+  padding: 10px 16px;
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.15s;
+  caret-color: var(--gold);
+}
+.note-input:focus { border-color: var(--gold); }
+.note-input.correct { border-color: var(--correct); color: var(--correct); }
+.note-input.wrong { border-color: var(--wrong); color: var(--wrong); }
+.submit-btn {
+  background: rgba(200,144,48,0.12);
+  border: 1px solid var(--gold-dim);
+  color: var(--gold);
+  font-family: 'DM Mono', monospace;
+  font-size: 0.8rem;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: all 0.15s;
+}
+.submit-btn:hover { background: rgba(200,144,48,0.2); border-color: var(--gold); }
+
+.feedback-msg {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.85rem;
+  height: 20px;
+  transition: opacity 0.2s;
+}
+.feedback-msg.correct { color: var(--correct); }
+.feedback-msg.wrong { color: var(--wrong); }
+
+/* --- PROGRESS --- */
+.stats-row {
+  display: flex; gap: 32px; align-items: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+}
+.stat-label { color: var(--text-muted); }
+.stat-val { color: var(--text-dim); }
+.stat-val.good { color: var(--correct); }
+
+.progress-bar-wrap { width: 100%; max-width: 600px; }
+.progress-label {
+  display: flex; justify-content: space-between;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.progress-track {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold));
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* --- NOTE LIST MODE --- */
+.note-list-wrap { text-align: center; }
+.note-list-title {
+  font-size: 1.4rem;
+  font-style: italic;
+  color: var(--gold);
+  margin-bottom: 32px;
+  letter-spacing: 0.06em;
+}
+.note-list-items {
+  display: flex; flex-direction: column; gap: 8px;
+  align-items: center;
+}
+.note-list-item {
+  font-family: 'DM Mono', monospace;
+  font-size: 1.6rem;
+  color: var(--text);
+  padding: 6px 32px;
+  border-bottom: 1px solid var(--border);
+  min-width: 180px;
+  text-align: center;
+  animation: slideIn 0.3s ease both;
+}
+.note-list-item:nth-child(1) { animation-delay: 0.0s }
+.note-list-item:nth-child(2) { animation-delay: 0.05s }
+.note-list-item:nth-child(3) { animation-delay: 0.1s }
+.note-list-item:nth-child(4) { animation-delay: 0.15s }
+.note-list-item:nth-child(5) { animation-delay: 0.2s }
+.note-list-item:nth-child(6) { animation-delay: 0.25s }
+.note-list-item:nth-child(7) { animation-delay: 0.3s }
+.note-list-item:nth-child(8) { animation-delay: 0.35s }
+.note-list-item:nth-child(9) { animation-delay: 0.4s }
+.note-list-item:nth-child(10) { animation-delay: 0.45s }
+.note-list-item:nth-child(11) { animation-delay: 0.5s }
+.note-list-item:nth-child(12) { animation-delay: 0.55s }
+.note-list-hint {
+  margin-top: 32px;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+.note-list-hint span { color: var(--gold-dim); }
+
+/* --- FREE LEARN --- */
+.free-legend {
+  display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+.free-legend span { color: var(--gold-dim); }
+
+/* scale selector */
+.scale-row {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;
+}
+.scale-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  padding: 6px 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.08em;
+}
+.scale-btn:hover { border-color: var(--gold-dim); color: var(--text); }
+.scale-btn.active { background: rgba(200,144,48,0.15); border-color: var(--gold); color: var(--gold); }
+.root-select {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.72rem;
+  padding: 6px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  outline: none;
+}
+
+/* --- CHORD MODE --- */
+.chord-input-wide {
+  width: 220px;
+  font-size: 1.2rem;
+  text-align: center;
+}
+
+/* --- TWEAKS PANEL --- */
+.tweaks-panel {
+  position: fixed; bottom: 20px; right: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 16px;
+  width: 220px;
+  z-index: 1000;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  animation: fadeIn 0.2s ease;
+}
+.tweaks-title {
+  color: var(--gold);
+  font-size: 0.8rem;
+  margin-bottom: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.tweak-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; }
+.tweak-label { color: var(--text-muted); letter-spacing: 0.1em; font-size: 0.68rem; }
+.tweak-options { display: flex; gap: 6px; flex-wrap: wrap; }
+.tweak-opt {
+  padding: 4px 10px; border-radius: 3px;
+  border: 1px solid var(--border);
+  background: none; color: var(--text-dim);
+  cursor: pointer; font-family: inherit; font-size: 0.7rem;
+  transition: all 0.12s;
+}
+.tweak-opt:hover { border-color: var(--gold-dim); color: var(--text); }
+.tweak-opt.active { background: rgba(200,144,48,0.15); border-color: var(--gold); color: var(--gold); }
+.tweak-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tweak-switch {
+  width: 32px; height: 16px; border-radius: 8px;
+  background: var(--border);
+  border: none; cursor: pointer;
+  position: relative; transition: background 0.2s;
+}
+.tweak-switch.on { background: var(--gold-dim); }
+.tweak-switch::after {
+  content: '';
+  position: absolute; top: 2px; left: 2px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--text);
+  transition: transform 0.2s;
+}
+.tweak-switch.on::after { transform: translateX(16px); }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes flash { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.flash { animation: flash 0.15s ease 2; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+/* ═══════════════════════════════════════
+   MUSIC THEORY
+═══════════════════════════════════════ */
+const CHROMATIC = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const DISPLAY_BOTH   = { 'C#':'C#/Db','D#':'D#/Eb','F#':'F#/Gb','G#':'G#/Ab','A#':'A#/Bb' };
+const DISPLAY_FLAT   = { 'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb' };
+const showNote = (n, style='both') => {
+  if (style==='flat')  return DISPLAY_FLAT[n]  || n;
+  if (style==='sharp') return n;
+  return DISPLAY_BOTH[n] || n;
+};
+
+// Top-to-bottom: high E, B, G, D, A, low E
+const STRINGS = ['E','B','G','D','A','E'];
+
+function noteAt(si, fret) {
+  const idx = CHROMATIC.indexOf(STRINGS[si]);
+  return CHROMATIC[(idx + fret) % 12];
+}
+
+function matchNote(input, expected) {
+  const FLAT_MAP = {'DB':'C#','EB':'D#','GB':'F#','AB':'G#','BB':'A#'};
+  const n = input.trim().toUpperCase().replace('♭','B').replace('/','').replace(' ','');
+  return (FLAT_MAP[n] || n) === expected;
+}
+
+const MAJOR_SCALE = [0,2,4,5,7,9,11];
+const MINOR_SCALE = [0,2,3,5,7,8,10];
+const PENTATONIC_MAJOR = [0,2,4,7,9];
+const PENTATONIC_MINOR = [0,3,5,7,10];
+
+function scaleNotes(root, intervals) {
+  const ri = CHROMATIC.indexOf(root);
+  return intervals.map(i => CHROMATIC[(ri+i)%12]);
+}
+
+/* ═══════════════════════════════════════
+   CHORD DATA  (s = display string 0-5)
+═══════════════════════════════════════ */
+const CHORD_SHAPES = [
+  { name:'E major', positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:2,iv:'1'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
+  { name:'A major', positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:2,iv:'1'},{s:1,f:2,iv:'3'},{s:0,f:0,iv:'5'}] },
+  { name:'D major', positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:3,iv:'1'},{s:0,f:2,iv:'3'}] },
+  { name:'G major', positions:[{s:5,f:3,iv:'1'},{s:4,f:2,iv:'3'},{s:3,f:0,iv:'5'},{s:2,f:0,iv:'1'},{s:1,f:0,iv:'3'},{s:0,f:3,iv:'1'}] },
+  { name:'C major', positions:[{s:4,f:3,iv:'1'},{s:3,f:2,iv:'3'},{s:2,f:0,iv:'5'},{s:1,f:1,iv:'1'},{s:0,f:0,iv:'3'}] },
+  { name:'E minor', positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:2,iv:'1'},{s:2,f:0,iv:'b3'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
+  { name:'A minor', positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:2,iv:'1'},{s:1,f:1,iv:'b3'},{s:0,f:0,iv:'5'}] },
+  { name:'D minor', positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:3,iv:'1'},{s:0,f:1,iv:'b3'}] },
+  { name:'F major', positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:3,iv:'1'},{s:2,f:2,iv:'3'},{s:1,f:1,iv:'5'},{s:0,f:1,iv:'1'}] },
+  { name:'B minor', positions:[{s:4,f:2,iv:'1'},{s:3,f:4,iv:'5'},{s:2,f:4,iv:'1'},{s:1,f:3,iv:'b3'},{s:0,f:2,iv:'5'}] },
+  { name:'G minor', positions:[{s:5,f:3,iv:'1'},{s:4,f:5,iv:'5'},{s:3,f:5,iv:'1'},{s:2,f:4,iv:'b3'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
+  { name:'C minor', positions:[{s:4,f:3,iv:'1'},{s:3,f:5,iv:'5'},{s:2,f:5,iv:'1'},{s:1,f:4,iv:'b3'},{s:0,f:3,iv:'5'}] },
+  { name:'B major', positions:[{s:4,f:2,iv:'1'},{s:3,f:4,iv:'5'},{s:2,f:4,iv:'1'},{s:1,f:4,iv:'3'},{s:0,f:2,iv:'5'}] },
+  { name:'G7',      positions:[{s:5,f:3,iv:'1'},{s:4,f:2,iv:'3'},{s:3,f:0,iv:'5'},{s:2,f:0,iv:'1'},{s:1,f:0,iv:'3'},{s:0,f:1,iv:'b7'}] },
+  { name:'D7',      positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:1,iv:'b7'},{s:0,f:2,iv:'3'}] },
+];
+
+function shuffleArr(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+  return a;
+}
+
+/* ═══════════════════════════════════════
+   FRETBOARD SVG
+═══════════════════════════════════════ */
+function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both' }) {
+  const FW = 70, SH = 32, ML = 54, MT = 36, MB = 18;
+  const W = ML + totalFrets * FW + 22;
+  const H = MT + 5 * SH + MB;
+  const cx = f => ML + (f - 0.5) * FW;
+  const cy = s => MT + s * SH;
+  const stringWidths = [1.0, 1.3, 1.7, 2.2, 2.8, 3.5];
+  const INLAY = [3,5,7,9];
+  const INLAY2 = [12];
+  const FRET_LABELS = [1,3,5,7,9,12];
+
+  // Check if a cell has a marker
+  const markerAt = (s,f) => markers.find(m => m.s===s && m.f===f);
+
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{minWidth: W}}>
+      <defs>
+        <linearGradient id="bgrd" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#3c2010"/>
+          <stop offset="40%" stopColor="#2a1608"/>
+          <stop offset="100%" stopColor="#3c2010"/>
+        </linearGradient>
+        <linearGradient id="nutGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stopColor="#f0e0b0"/>
+          <stop offset="100%" stopColor="#c8a860"/>
+        </linearGradient>
+        <filter id="glow">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+        </filter>
+      </defs>
+
+      {/* Board background */}
+      <rect x={ML} y={MT - SH*0.55} width={totalFrets*FW} height={5*SH + SH*1.1}
+        fill="url(#bgrd)" rx="2"/>
+
+      {/* Wood grain lines */}
+      {[0.2,0.45,0.72,0.88].map((t,i) => (
+        <line key={i}
+          x1={ML} y1={MT - SH*0.55 + t*(5*SH+SH*1.1)}
+          x2={ML+totalFrets*FW} y2={MT - SH*0.55 + t*(5*SH+SH*1.1)}
+          stroke="rgba(0,0,0,0.12)" strokeWidth="1"/>
+      ))}
+
+      {/* Fret set highlight */}
+      {fretSet && (
+        <>
+          <rect
+            x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
+            width={(fretSet[1]-fretSet[0]+1)*FW} height={5*SH+SH*1.1}
+            fill="rgba(180,120,30,0.13)" rx="2"/>
+          <rect
+            x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
+            width={(fretSet[1]-fretSet[0]+1)*FW} height={5*SH+SH*1.1}
+            fill="none" stroke="rgba(200,160,60,0.55)" strokeWidth="1.5" rx="2"/>
+          <rect
+            x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
+            width={(fretSet[1]-fretSet[0]+1)*FW} height={3}
+            fill="rgba(200,160,60,0.6)" rx="1"/>
+          <rect
+            x={ML + (fretSet[0]-1)*FW} y={MT + 5*SH + SH*0.55 - 3}
+            width={(fretSet[1]-fretSet[0]+1)*FW} height={3}
+            fill="rgba(200,160,60,0.6)" rx="1"/>
+        </>
+      )}
+
+      {/* Inlay dots */}
+      {INLAY.map(f => (
+        <circle key={f} cx={cx(f)} cy={MT + 2.5*SH} r={5.5}
+          fill="rgba(240,220,178,0.32)" stroke="rgba(240,220,178,0.12)" strokeWidth="0.5"/>
+      ))}
+      {INLAY2.map(f => [1.2, 3.8].map((sv,i) => (
+        <circle key={`${f}-${i}`} cx={cx(f)} cy={MT + sv*SH} r={5.5}
+          fill="rgba(240,220,178,0.32)" stroke="rgba(240,220,178,0.12)" strokeWidth="0.5"/>
+      )))}
+
+      {/* Nut */}
+      <rect x={ML-5} y={MT-SH*0.55} width={5} height={5*SH+SH*1.1}
+        fill="url(#nutGrad)" rx="1"/>
+
+      {/* Fret lines */}
+      {Array.from({length:totalFrets},(_,i)=>i+1).map(f => (
+        <line key={f}
+          x1={ML+f*FW} y1={MT-SH*0.55}
+          x2={ML+f*FW} y2={MT+5*SH+SH*0.55}
+          stroke={f===12?"#b08840":"#8a6420"}
+          strokeWidth={f===12?2.5:1.5}/>
+      ))}
+
+      {/* String lines */}
+      {STRINGS.map((_, s) => (
+        <line key={s}
+          x1={ML-5} y1={cy(s)} x2={ML+totalFrets*FW+1} y2={cy(s)}
+          stroke="#c8a030" strokeWidth={stringWidths[s]} opacity="0.85"/>
+      ))}
+
+      {/* Fret number labels */}
+      {FRET_LABELS.filter(f=>f<=totalFrets).map(f => (
+        <text key={f} x={cx(f)} y={MT-16} textAnchor="middle"
+          fill="#6a5830" fontSize="11" fontFamily="'DM Mono',monospace">{f}</text>
+      ))}
+
+      {/* String labels */}
+      {STRINGS.map((n, s) => (
+        <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
+          fill="#c89030" fontSize="13" fontWeight="600"
+          fontFamily="'DM Mono',monospace">{n}</text>
+      ))}
+
+      {/* Revealed note labels (free mode) */}
+      {Object.entries(showNotes).map(([key, note]) => {
+        const [s,f] = key.split('-').map(Number);
+        return (
+          <g key={key}>
+            <circle cx={cx(f)} cy={cy(s)} r={13} fill="rgba(42,22,8,0.85)" stroke="rgba(200,144,48,0.6)" strokeWidth="1"/>
+            <text x={cx(f)} y={cy(s)+4} textAnchor="middle"
+              fill="#d4902a" fontSize={showNote(noteAt(s,f),noteStyle).includes('/')? 8 : 11}
+              fontFamily="'DM Mono',monospace" fontWeight="500">{showNote(noteAt(s,f),noteStyle)}</text>
+          </g>
+        );
+      })}
+
+      {/* Markers */}
+      {markers.map((m, i) => {
+        const mcx = cx(m.f), mcy = cy(m.s);
+        const colors = {
+          question: ['#a87028', '#f0ddb8'],
+          correct:  ['#4a7830', '#b0e890'],
+          wrong:    ['#882018', '#f0a090'],
+          marked:   ['#a87028', '#f0ddb8'],
+          interval: ['#285870', '#90c8e8'],
+        };
+        const [bg, fg] = colors[m.type] || colors.question;
+        const label = m.label ?? '?';
+        const small = label.length > 2;
+        return (
+          <g key={i} filter={m.type==='question' ? "url(#glow)":undefined}>
+            <circle cx={mcx} cy={mcy} r={13} fill={bg} stroke={fg} strokeWidth="1.5" opacity={m.opacity ?? 0.95}/>
+            {label && <text x={mcx} y={mcy+4} textAnchor="middle"
+              fill={fg} fontSize={small?8:11}
+              fontFamily="'DM Mono',monospace" fontWeight="600">{label}</text>}
+          </g>
+        );
+      })}
+
+      {/* Selected cell highlight (free mode) */}
+      {selectedCell && !markerAt(selectedCell.s, selectedCell.f) && !showNotes[`${selectedCell.s}-${selectedCell.f}`] && (
+        <rect
+          x={cx(selectedCell.f)-FW/2+2} y={cy(selectedCell.s)-SH/2+2}
+          width={FW-4} height={SH-4}
+          fill="rgba(200,144,48,0.12)" stroke="rgba(200,144,48,0.5)"
+          strokeWidth="1" rx="2"/>
+      )}
+
+      {/* Interactive click areas */}
+      {interactive && STRINGS.map((_,s) =>
+        Array.from({length:totalFrets},(_,fi)=>fi+1).map(f => {
+          const inRange = !fretSet || (f>=fretSet[0] && f<=fretSet[1]);
+          return (
+            <rect key={`${s}-${f}`}
+              x={cx(f)-FW/2+1} y={cy(s)-SH/2}
+              width={FW-2} height={SH}
+              fill="transparent"
+              style={{cursor: inRange?'crosshair':'default'}}
+              onClick={() => inRange && onCellClick && onCellClick(s,f)}/>
+          );
+        })
+      )}
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════
+   TIMER HOOK
+═══════════════════════════════════════ */
+function useTimer() {
+  const [t, setT] = useState(0);
+  const ref = useRef(null);
+  const start = useCallback(() => {
+    setT(0);
+    clearInterval(ref.current);
+    ref.current = setInterval(() => setT(p => p+1), 1000);
+  }, []);
+  const stop = useCallback(() => clearInterval(ref.current), []);
+  useEffect(() => () => clearInterval(ref.current), []);
+  return [t, start, stop];
+}
+/* ═══════════════════════════════════════
+   GAME MODE 1: RANDOM NOTE
+═══════════════════════════════════════ */
+function RandomNoteGame({ onBack, tweaks }) {
+  const totalFrets = tweaks.frets;
+  const total = 6 * totalFrets;
+  const [done, setDone] = useState(new Set());
+  const [queue, setQueue] = useState(() => {
+    const q = [];
+    for(let s=0;s<6;s++) for(let f=1;f<=totalFrets;f++) q.push({s,f});
+    return shuffleArr(q);
+  });
+  const [qi, setQi] = useState(0);
+  const [input, setInput] = useState('');
+  const [feedback, setFeedback] = useState(null);
+  const [streak, setStreak] = useState(0);
+  const [finished, setFinished] = useState(false);
+  const [time, startTimer, stopTimer] = useTimer();
+  const inputRef = useRef(null);
+  const [flashing, setFlashing] = useState(false);
+
+  useEffect(() => { startTimer(); }, []);
+  useEffect(() => { if (!feedback) inputRef.current?.focus(); }, [feedback]);
+  useEffect(() => { inputRef.current?.focus(); }, [qi]);
+
+  const current = queue[qi % queue.length];
+  const expected = current ? noteAt(current.s, current.f) : null;
+
+  function submit() {
+    if (!input.trim() || !current) return;
+    if (matchNote(input, expected)) {
+      const newDone = new Set(done); newDone.add(`${current.s}-${current.f}`);
+      setDone(newDone);
+      setStreak(s => s+1);
+      setFeedback('correct');
+      setFlashing(true);
+      if (newDone.size >= total) {
+        stopTimer();
+        setTimeout(() => setFinished(true), 600);
+      } else {
+        setTimeout(() => { setFlashing(false); setFeedback(null); setInput(''); setQi(q => q+1); }, 500);
+      }
+    } else {
+      setStreak(0);
+      setFeedback('wrong');
+      setTimeout(() => {
+        setFeedback(null);
+        setInput('');
+      }, 600);
+    }
+  }
+
+  if (finished) return (
+    <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:32}}>
+      <div style={{fontSize:'clamp(2rem,5vw,3rem)',fontWeight:900,fontStyle:'italic',color:'var(--gold)',textShadow:'0 0 40px rgba(200,144,48,0.4)'}}>
+        All Clear!
+      </div>
+      <div style={{fontFamily:'DM Mono',fontSize:'0.85rem',color:'var(--text-dim)',letterSpacing:'0.1em'}}>
+        You named every note on the fretboard
+      </div>
+      <div style={{display:'flex',gap:40,justifyContent:'center',fontFamily:'DM Mono',fontSize:'0.8rem',color:'var(--text-dim)'}}>
+        <span><span style={{color:'var(--text-muted)'}}>time </span>{time}s</span>
+        <span><span style={{color:'var(--text-muted)'}}>notes </span>{total}</span>
+        <span><span style={{color:'var(--text-muted)'}}>best streak </span>{streak}</span>
+        <span><span style={{color:'var(--text-muted)'}}>avg/note </span>{(time/total).toFixed(1)}s</span>
+      </div>
+      <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
+      <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
+        ← back to menu
+      </button>
+    </div>
+  );
+
+  // Solved + current markers
+  const markers = [
+    ...[...done].map(key => {
+      const [s, f] = key.split('-').map(Number);
+      return { s, f, type: 'correct', label: '', opacity: 0.45 };
+    }),
+    // Current question
+    ...(current ? [{
+      s: current.s, f: current.f,
+      type: feedback==='correct' ? 'correct' : feedback==='wrong' ? 'wrong' : 'question',
+      label: feedback==='correct' ? '' : '?'
+    }] : [])
+  ];
+
+  return (
+    <div className="game-wrap">
+      <div className="game-header">
+        <span className="game-title">▸ Guess the Note</span>
+        <button className="back-btn" onClick={onBack}>← back</button>
+      </div>
+
+      <div className="fretboard-wrap">
+        <Fretboard markers={markers} totalFrets={totalFrets} noteStyle={tweaks.noteStyle}/>
+      </div>
+
+      <div className="input-area">
+        <div className="prompt-text">Find the note!</div>
+        <div className="note-input-row">
+          <input
+            ref={inputRef}
+            className={`note-input ${feedback||''} ${flashing?'flash':''}`}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key==='Enter' && submit()}
+            placeholder="note…"
+            maxLength={4}
+            disabled={!!feedback}
+            autoComplete="off" autoCorrect="off" spellCheck="false"
+          />
+          <button className="submit-btn" onClick={submit}>Enter ↵</button>
+        </div>
+        <div className={`feedback-msg ${feedback||''}`}>
+          {feedback==='correct' && '✓ Correct!'}
+          {feedback==='wrong' && '✗ Wrong answer, try again'}
+        </div>
+      </div>
+
+      <div className="progress-bar-wrap">
+        <div className="progress-label">
+          <span>Progress</span>
+          <span>{done.size}/{total}</span>
+        </div>
+        <div className="progress-track">
+          <div className="progress-fill" style={{width:`${(done.size/total)*100}%`}}/>
+        </div>
+      </div>
+
+      <div className="stats-row">
+        <span><span className="stat-label">time </span><span className="stat-val">{time}s</span></span>
+        <span><span className="stat-label">streak </span><span className={`stat-val ${streak>4?'good':''}`}>{streak}</span></span>
+        <span style={{fontFamily:'DM Mono',fontSize:'0.68rem',color:'var(--text-muted)'}}>type name + enter</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   GAME MODE 2: FIND NOTES IN FRET SET
+═══════════════════════════════════════ */
+const FRET_SETS_MODE2 = [[1,3],[4,6],[7,9],[10,12]];
+const SET_SIZE = 18; // 3 frets × 6 strings
+const TOTAL_MODE2 = SET_SIZE * FRET_SETS_MODE2.length; // 72
+
+function notesInSet(fretSet) {
+  // Returns shuffled list of unique notes that appear in this fret set
+  const seen = new Set();
+  for(let s=0;s<6;s++) for(let f=fretSet[0];f<=fretSet[1];f++) seen.add(noteAt(s,f));
+  return shuffleArr([...seen]);
+}
+
+function positionsOfNote(note, fretSet) {
+  const positions = [];
+  for(let s=0;s<6;s++) for(let f=fretSet[0];f<=fretSet[1];f++)
+    if(noteAt(s,f)===note) positions.push(`${s}-${f}`);
+  return positions;
+}
+
+function FindNotesGame({ onBack, tweaks }) {
+  const [setIdx, setSetIdx] = useState(0);
+  const fretSet = FRET_SETS_MODE2[setIdx];
+  const [noteQueue, setNoteQueue] = useState(() => notesInSet(FRET_SETS_MODE2[0]));
+  const [noteQi, setNoteQi] = useState(0);
+  const [foundInSet, setFoundInSet] = useState(new Set());
+  const [totalFound, setTotalFound] = useState(0);
+  const [wrongKey, setWrongKey] = useState(null);
+  const [setComplete, setSetComplete] = useState(false);
+  const [finished, setFinished] = useState(false);
+  const [time, startTimer, stopTimer] = useTimer();
+
+  useEffect(() => { startTimer(); }, []);
+
+  const targetNote = noteQueue[noteQi] ?? null;
+  const targetPositions = targetNote ? positionsOfNote(targetNote, fretSet) : [];
+  const remainingForNote = targetPositions.filter(p => !foundInSet.has(p));
+
+  function clickCell(s, f) {
+    if (setComplete || !targetNote) return;
+    const key = `${s}-${f}`;
+    if (foundInSet.has(key)) return;
+    if (noteAt(s,f) === targetNote) {
+      const newFound = new Set(foundInSet); newFound.add(key);
+      setFoundInSet(newFound);
+      setTotalFound(t => t+1);
+      // All occurrences of this note found?
+      const remaining = targetPositions.filter(p => !newFound.has(p));
+      if (remaining.length === 0) {
+        const nextNoteQi = noteQi + 1;
+        // All notes in set found?
+        if (nextNoteQi >= noteQueue.length) {
+          setSetComplete(true);
+          const isLastSet = setIdx === FRET_SETS_MODE2.length - 1;
+          if (isLastSet && totalFound + 1 >= TOTAL_MODE2) {
+            stopTimer();
+            setTimeout(() => setFinished(true), 1400);
+          } else {
+            setTimeout(() => {
+              const nextIdx = (setIdx + 1) % FRET_SETS_MODE2.length;
+              const nextFretSet = FRET_SETS_MODE2[nextIdx];
+              setSetIdx(nextIdx);
+              setNoteQueue(notesInSet(nextFretSet));
+              setNoteQi(0);
+              setFoundInSet(new Set());
+              setSetComplete(false);
+            }, 1400);
+          }
+        } else {
+          setNoteQi(nextNoteQi);
+        }
+      }
+    } else {
+      setWrongKey(key);
+      setTimeout(() => setWrongKey(null), 700);
+    }
+  }
+
+  const markers = [];
+  for(let s=0;s<6;s++) for(let f=fretSet[0];f<=fretSet[1];f++) {
+    const key = `${s}-${f}`;
+    if (foundInSet.has(key)) markers.push({s,f,type:'correct',label:'',opacity:0.45});
+    if (wrongKey===key) markers.push({s,f,type:'wrong',label:'✗'});
+  }
+
+  const setFoundCount = foundInSet.size;
+
+  if (finished) return (
+    <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:32}}>
+      <div style={{fontSize:'clamp(2rem,5vw,3rem)',fontWeight:900,fontStyle:'italic',color:'var(--gold)',textShadow:'0 0 40px rgba(200,144,48,0.4)'}}>
+        All Clear!
+      </div>
+      <div style={{fontFamily:'DM Mono',fontSize:'0.85rem',color:'var(--text-dim)',letterSpacing:'0.1em'}}>
+        You found every note on the fretboard
+      </div>
+      <div style={{display:'flex',gap:32,justifyContent:'center',flexWrap:'wrap',fontFamily:'DM Mono',fontSize:'0.8rem',color:'var(--text-dim)'}}>
+        <span><span style={{color:'var(--text-muted)'}}>time </span>{time}s</span>
+        <span><span style={{color:'var(--text-muted)'}}>notes </span>{TOTAL_MODE2}</span>
+        <span><span style={{color:'var(--text-muted)'}}>avg/note </span>{(time/TOTAL_MODE2).toFixed(1)}s</span>
+      </div>
+      <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
+      <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
+        ← back to menu
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="game-wrap">
+      <div className="game-header">
+        <span className="game-title">▸ Find Notes in Fret Set</span>
+        <button className="back-btn" onClick={onBack}>← back</button>
+      </div>
+
+      <div className="fretboard-wrap">
+        <Fretboard markers={markers} onCellClick={clickCell} fretSet={fretSet} interactive={true} totalFrets={12} noteStyle={tweaks.noteStyle}/>
+      </div>
+
+      <div className="input-area">
+        {setComplete ? (
+          <div style={{fontFamily:'DM Mono',fontSize:'0.95rem',color:'var(--correct)',letterSpacing:'0.1em'}}>
+            ✓ Set complete! Next set…
+          </div>
+        ) : (
+          <div style={{textAlign:'center'}}>
+            <div className="prompt-text">
+              Find all&nbsp;<strong style={{color:'var(--gold)',fontSize:'1.6rem'}}>{targetNote ? showNote(targetNote, tweaks.noteStyle) : '—'}</strong>
+            </div>
+            <div style={{fontFamily:'DM Mono',fontSize:'0.72rem',color:'var(--text-muted)',marginTop:6}}>
+              {remainingForNote.length} remaining · frets {fretSet[0]}–{fretSet[1]}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',width:'100%',maxWidth:600}}>
+        <div className="progress-bar-wrap" style={{marginBottom:0}}>
+          <div className="progress-label">
+            <span>Fret set {setIdx+1}/{FRET_SETS_MODE2.length} · frets {fretSet[0]}–{fretSet[1]}</span>
+            <span>{setFoundCount}/{SET_SIZE}</span>
+          </div>
+          <div className="progress-track">
+            <div className="progress-fill" style={{width:`${(setFoundCount/SET_SIZE)*100}%`}}/>
+          </div>
+        </div>
+        <div className="progress-bar-wrap" style={{marginBottom:0}}>
+          <div className="progress-label"><span>Fretboard total</span><span>{totalFound}/{TOTAL_MODE2}</span></div>
+          <div className="progress-track">
+            <div className="progress-fill" style={{width:`${(totalFound/TOTAL_MODE2)*100}%`}}/>
+          </div>
+        </div>
+      </div>
+
+      <div className="stats-row">
+        <span><span className="stat-label">time </span><span className="stat-val">{time}s</span></span>
+        <span style={{fontFamily:'DM Mono',fontSize:'0.68rem',color:'var(--text-muted)'}}>click all occurrences</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   GAME MODE 3: CHORD IDENTIFICATION
+═══════════════════════════════════════ */
+function ChordGame({ onBack, tweaks }) {
+  const [chords] = useState(() => shuffleArr(CHORD_SHAPES));
+  const [ci, setCi] = useState(0);
+  const [input, setInput] = useState('');
+  const [feedback, setFeedback] = useState(null);
+  const [score, setScore] = useState(0);
+  const [time, startTimer] = useTimer();
+  const inputRef = useRef(null);
+
+  useEffect(() => { startTimer(); }, []);
+  useEffect(() => { inputRef.current?.focus(); }, [ci]);
+
+  const chord = chords[ci % chords.length];
+
+  function submit() {
+    if (!input.trim()) return;
+    const norm = input.trim().toLowerCase().replace(/\s+/g,' ');
+    const name = chord.name.toLowerCase();
+    // Accept chord name substrings (e.g. "e" for "E major", "am" for "A minor")
+    const aliases = {
+      'maj':' major','min':' minor','m ':' minor',
+    };
+    let in2 = norm;
+    for(const [k,v] of Object.entries(aliases)) in2 = in2.replace(k,v);
+    const correct = in2===name || norm===name ||
+      (norm.length>0 && name.replace(' ','').startsWith(norm.replace(' ','')));
+    if (correct) {
+      setScore(s=>s+1);
+      setFeedback('correct');
+      setTimeout(() => { setFeedback(null); setInput(''); setCi(c=>c+1); }, 700);
+    } else {
+      setFeedback('wrong');
+      setTimeout(() => setFeedback(null), 1200);
+    }
+  }
+
+  const markers = chord.positions.map(({s,f,iv}) => ({
+    s, f, type:'interval', label: iv
+  }));
+
+  return (
+    <div className="game-wrap">
+      <div className="game-header">
+        <span className="game-title">▸ Chord Identification</span>
+        <button className="back-btn" onClick={onBack}>← back</button>
+      </div>
+
+      <div className="fretboard-wrap">
+        <Fretboard markers={markers} totalFrets={tweaks.frets} noteStyle={tweaks.noteStyle}/>
+      </div>
+
+      <div className="input-area">
+        <div className="prompt-text">Which chord is this?</div>
+        <div className="note-input-row">
+          <input
+            ref={inputRef}
+            className={`note-input chord-input-wide ${feedback||''}`}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key==='Enter' && submit()}
+            placeholder="chord name…"
+            disabled={!!feedback}
+            autoComplete="off" spellCheck="false"
+          />
+          <button className="submit-btn" onClick={submit}>Enter ↵</button>
+        </div>
+        <div className={`feedback-msg ${feedback||''}`}>
+          {feedback==='correct' && '✓ Correct!'}
+          {feedback==='wrong' && `✗ Answer: ${chord.name}`}
+        </div>
+        <div style={{fontFamily:'DM Mono',fontSize:'0.68rem',color:'var(--text-muted)',marginTop:4}}>
+          Numbers show chord intervals: 1=root, 3=third, 5=fifth, b3=minor 3rd, b7=minor 7th
+        </div>
+      </div>
+
+      <div className="progress-bar-wrap">
+        <div className="progress-label">
+          <span>Progress</span>
+          <span>{score}/{chords.length}</span>
+        </div>
+        <div className="progress-track">
+          <div className="progress-fill" style={{width:`${(score/chords.length)*100}%`}}/>
+        </div>
+      </div>
+
+      <div className="stats-row">
+        <span><span className="stat-label">time </span><span className="stat-val">{time}s</span></span>
+        <span><span className="stat-label">score </span><span className="stat-val good">{score}</span></span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   GAME MODE 4: FREE LEARNING
+═══════════════════════════════════════ */
+function FreeLearn({ onBack, tweaks }) {
+  const totalFrets = tweaks.frets;
+  const [revealed, setRevealed] = useState({});
+  const [sel, setSel] = useState({s:0,f:1});
+  const [scaleRoot, setScaleRoot] = useState('C');
+  const [scaleType, setScaleType] = useState(null);
+
+  const scaleSet = scaleType ? new Set(scaleNotes(scaleRoot, {
+    major: MAJOR_SCALE, minor: MINOR_SCALE,
+    'pent.maj': PENTATONIC_MAJOR, 'pent.min': PENTATONIC_MINOR
+  }[scaleType])) : null;
+
+  function handleCellClick(s, f) {
+    const key = `${s}-${f}`;
+    setRevealed(prev => {
+      const n = {...prev};
+      if (n[key]) delete n[key]; else n[key] = showNote(noteAt(s,f), tweaks.noteStyle);
+      return n;
+    });
+    setSel({s,f});
+  }
+
+  useEffect(() => {
+    function onKey(e) {
+      const {s,f} = sel;
+      if (e.key==='ArrowUp'||e.key==='k') setSel({s:Math.max(0,s-1),f});
+      else if (e.key==='ArrowDown'||e.key==='j') setSel({s:Math.min(5,s+1),f});
+      else if (e.key==='ArrowLeft'||e.key==='h') setSel({s,f:Math.max(1,f-1)});
+      else if (e.key==='ArrowRight'||e.key==='l') setSel({s,f:Math.min(totalFrets,f+1)});
+      else if (e.key===' ') { e.preventDefault(); handleCellClick(s,f); }
+      else if (e.key==='r') setRevealed({});
+      else if (e.key==='Escape') onBack();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [sel, revealed, totalFrets]);
+
+  // Build scale markers
+  const scaleMarkers = [];
+  if (scaleSet) {
+    for(let s=0;s<6;s++) for(let f=1;f<=totalFrets;f++) {
+      const n = noteAt(s,f);
+      if (scaleSet.has(n) && !revealed[`${s}-${f}`]) {
+        const isRoot = n===scaleRoot;
+        scaleMarkers.push({s,f,type:isRoot?'question':'interval',label:n});
+      }
+    }
+  }
+
+  return (
+    <div className="game-wrap">
+      <div className="game-header">
+        <span className="game-title">▸ Free Learning</span>
+        <button className="back-btn" onClick={onBack}>← back</button>
+      </div>
+
+      <div className="fretboard-wrap">
+        <Fretboard
+          markers={scaleMarkers}
+          showNotes={revealed}
+          onCellClick={handleCellClick}
+          interactive={true}
+          selectedCell={sel}
+          totalFrets={totalFrets}
+          noteStyle={tweaks.noteStyle}
+        />
+      </div>
+
+      <div className="scale-row">
+        <select className="root-select" value={scaleRoot} onChange={e=>setScaleRoot(e.target.value)}>
+          {CHROMATIC.map(n=><option key={n} value={n}>{showNote(n, tweaks.noteStyle)}</option>)}
+        </select>
+        {['major','minor','pent.maj','pent.min'].map(t => (
+          <button key={t} className={`scale-btn ${scaleType===t?'active':''}`}
+            onClick={()=>setScaleType(p=>p===t?null:t)}>{t}</button>
+        ))}
+        <button className="scale-btn" onClick={()=>setRevealed({})}>clear</button>
+      </div>
+
+      <div className="free-legend">
+        <span><span>↑↓←→</span> / hjkl: move</span>
+        <span><span>Space</span>: reveal/hide</span>
+        <span><span>click</span>: reveal note</span>
+        <span><span>r</span>: clear all</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   GAME MODE 5: NOTE LIST
+═══════════════════════════════════════ */
+function NoteListGame({ onBack }) {
+  const [notes, setNotes] = useState(() => shuffleArr(CHROMATIC));
+  const [key, setKey] = useState(0);
+
+  function shuffle() { setNotes(shuffleArr(CHROMATIC)); setKey(k=>k+1); }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key==='n' || e.key===' ' || e.key==='Enter') { e.preventDefault(); shuffle(); }
+      else if (e.key==='Escape'||e.key==='b') onBack();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  return (
+    <div className="game-wrap" style={{maxWidth:480}}>
+      <div className="game-header">
+        <span className="game-title">▸ Note List</span>
+        <button className="back-btn" onClick={onBack}>← back</button>
+      </div>
+
+      <div className="note-list-wrap" key={key}>
+        <div className="note-list-title">Chromatic Scale</div>
+        <div className="note-list-items">
+          {notes.map((n) => (
+            <div key={n} className="note-list-item">{showNote(n)}</div>
+          ))}
+        </div>
+        <div className="note-list-hint" style={{marginTop:24}}>
+          <span>n</span>: shuffle &nbsp; <span>Esc</span>: back
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   MENU
+═══════════════════════════════════════ */
+const MENU_ITEMS = [
+  { id:'random',  label:'Guess a random note' },
+  { id:'find',    label:'Find notes in a set of 3 frets' },
+  { id:'chord',   label:'Identify chord notes (CAGED system)' },
+  { id:'free',    label:'Free learning — explore the fretboard' },
+  { id:'notes',   label:'Simple random note list' },
+];
+
+function Menu({ onSelect }) {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key==='ArrowUp'||e.key==='k') setActive(a=>Math.max(0,a-1));
+      else if (e.key==='ArrowDown'||e.key==='j') setActive(a=>Math.min(MENU_ITEMS.length-1,a+1));
+      else if (e.key==='Enter') onSelect(MENU_ITEMS[active].id);
+      else {
+        const n = parseInt(e.key);
+        if (n>=1&&n<=MENU_ITEMS.length) onSelect(MENU_ITEMS[n-1].id);
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [active]);
+
+  return (
+    <div className="menu-wrap">
+      <div className="menu-logo">Fremorizer</div>
+      <div className="menu-tagline">guitar fretboard trainer</div>
+      <div className="menu-divider"/>
+      <ul className="menu-list">
+        {MENU_ITEMS.map((item, i) => (
+          <li key={item.id}
+            className={`menu-item ${i===active?'active':''}`}
+            onClick={() => onSelect(item.id)}
+            onMouseEnter={() => setActive(i)}>
+            <span className="menu-num">{i+1}.</span>
+            <span className="menu-label">{item.label}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="menu-hint">
+        <span>↑↓</span> navigate &nbsp; <span>Enter</span> select &nbsp; <span>1–5</span> quick select
+      </div>
+
+      <div className="amp-panel">
+        <div className="amp-label">also available as CLI</div>
+        <div className="amp-screws">
+          <div className="amp-screw"/>
+          <div className="amp-screw"/>
+        </div>
+        <div className="amp-content">
+          Visit: <a href="https://github.com/funkymcb/Fremorizer" target="_blank" rel="noopener noreferrer">github.com/funkymcb/Fremorizer</a><br/>
+          Or run: <span className="amp-cmd">ssh -p 2222 fremorizer.com</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   TWEAKS
+═══════════════════════════════════════ */
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "frets": 12,
+  "showInlays": true,
+  "noteStyle": "sharp"
+}/*EDITMODE-END*/;
+
+function TweaksPanel({ tweaks, setTweaks }) {
+  return (
+    <div className="tweaks-panel">
+      <div className="tweaks-title">Tweaks</div>
+      <div className="tweak-row">
+        <div className="tweak-label">FRETS</div>
+        <div className="tweak-options">
+          {[7,9,12].map(n => (
+            <button key={n} className={`tweak-opt ${tweaks.frets===n?'active':''}`}
+              onClick={() => setTweaks(t=>({...t,frets:n}))}>{n}</button>
+          ))}
+        </div>
+      </div>
+      <div className="tweak-row">
+        <div className="tweak-label">NOTE STYLE</div>
+        <div className="tweak-options">
+          {['sharp','flat','both'].map(s => (
+            <button key={s} className={`tweak-opt ${tweaks.noteStyle===s?'active':''}`}
+              onClick={() => setTweaks(t=>({...t,noteStyle:s}))}>{s}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   APP
+═══════════════════════════════════════ */
+function App() {
+  const [mode, setMode] = useState(() => localStorage.getItem('frem_mode') || null);
+  const [tweaksOpen, setTweaksOpen] = useState(false);
+  const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
+
+  useEffect(() => {
+    if (mode) localStorage.setItem('frem_mode', mode);
+    else localStorage.removeItem('frem_mode');
+  }, [mode]);
+
+  // Tweaks toggle via keyboard shortcut (T key on the menu screen)
+  useEffect(() => {
+    function handler(e) {
+      if (!mode && e.key === 't') setTweaksOpen(o => !o);
+    }
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [mode]);
+
+  function handleTweaks(newT) { setTweaks(newT); }
+
+  function back() { setMode(null); }
+
+  return (
+    <>
+      {!mode && <Menu onSelect={setMode}/>}
+      {mode==='random' && <RandomNoteGame onBack={back} tweaks={tweaks}/>}
+      {mode==='find' && <FindNotesGame onBack={back} tweaks={tweaks}/>}
+      {mode==='chord' && <ChordGame onBack={back} tweaks={tweaks}/>}
+      {mode==='free' && <FreeLearn onBack={back} tweaks={tweaks}/>}
+      {mode==='notes' && <NoteListGame onBack={back}/>}
+      {tweaksOpen && <TweaksPanel tweaks={tweaks} setTweaks={handleTweaks}/>}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

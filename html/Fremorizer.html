@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fremorizer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Mono:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
@@ -29,7 +29,102 @@
   --selected: rgba(200,144,48,0.25);
   --border: rgba(200,144,48,0.2);
 }
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── METAL THEME ─────────────────────────────── */
+[data-theme="metal"] {
+  --bg: #06080a;
+  --surface: #0d1218;
+  --text: #d8eaf5;
+  --text-dim: #5a7a90;
+  --text-muted: #2a3a48;
+  --gold: #00c8ff;
+  --gold-dim: #006888;
+  --correct: #00d060;
+  --wrong: #ff2844;
+  --selected: rgba(0,200,255,0.12);
+  --border: rgba(0,200,255,0.18);
+  --fret-accent: #00c8ff;
+}
+[data-theme="metal"] body {
+  background-color: #06080a;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(90deg, transparent, transparent 79px, rgba(0,200,255,0.025) 80px);
+}
+[data-theme="metal"] .menu-logo { font-family: 'Oswald', sans-serif; font-style: normal; letter-spacing: 0.12em; text-transform: uppercase; text-shadow: 0 0 40px rgba(0,200,255,0.4), 0 0 80px rgba(0,200,255,0.15); }
+[data-theme="metal"] .menu-tagline { letter-spacing: 0.3em; color: var(--text-muted); }
+[data-theme="metal"] .menu-divider { background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+[data-theme="metal"] .menu-label { font-family: 'Oswald', sans-serif; font-size: 1rem; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 400; }
+[data-theme="metal"] .menu-num { color: var(--gold-dim); }
+[data-theme="metal"] .menu-item:hover, [data-theme="metal"] .menu-item.active { border-color: rgba(0,200,255,0.4); background: rgba(0,200,255,0.06); }
+[data-theme="metal"] .menu-item.active { border-color: rgba(0,200,255,0.7); }
+[data-theme="metal"] .prompt-text { font-family: 'Oswald', sans-serif; font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; font-size: 1rem; }
+[data-theme="metal"] .game-title { color: var(--gold-dim); }
+[data-theme="metal"] .progress-fill { background: linear-gradient(90deg, var(--gold-dim), var(--gold)); box-shadow: 0 0 8px var(--gold); }
+[data-theme="metal"] .note-input { background: #080e14; border-color: var(--gold-dim); }
+[data-theme="metal"] .note-input:focus { border-color: var(--gold); box-shadow: 0 0 12px rgba(0,200,255,0.2); }
+[data-theme="metal"] .submit-btn { background: rgba(0,200,255,0.08); border-color: var(--gold-dim); color: var(--gold); }
+[data-theme="metal"] .submit-btn:hover { background: rgba(0,200,255,0.18); border-color: var(--gold); box-shadow: 0 0 12px rgba(0,200,255,0.2); }
+[data-theme="metal"] .back-btn { background: rgba(0,200,255,0.06); border-color: var(--border); }
+[data-theme="metal"] .back-btn:hover { color: var(--gold); background: rgba(0,200,255,0.14); border-color: var(--gold-dim); }
+[data-theme="metal"] .scale-btn.active { background: rgba(0,200,255,0.1); border-color: var(--gold); color: var(--gold); }
+[data-theme="metal"] .note-list-title { font-family: 'Oswald', sans-serif; font-style: normal; letter-spacing: 0.2em; text-transform: uppercase; }
+[data-theme="metal"] .note-list-item { font-size: 1.5rem; letter-spacing: 0.08em; color: var(--text); }
+[data-theme="metal"] .tweaks-panel { background: #0a1018; border-color: rgba(0,200,255,0.25); }
+[data-theme="metal"] .tweaks-title { color: var(--gold); }
+[data-theme="metal"] .tweak-opt.active { background: rgba(0,200,255,0.12); border-color: var(--gold); color: var(--gold); }
+[data-theme="metal"] .amp-panel { background: linear-gradient(180deg,#0a1018 0%,#06080a 100%); border-color: #1a3040; box-shadow: 0 0 0 1px #0a1828, 0 4px 24px rgba(0,0,0,0.8), inset 0 1px 0 rgba(0,200,255,0.06); }
+[data-theme="metal"] .amp-panel::before { background: linear-gradient(90deg,transparent,rgba(0,200,255,0.3),transparent); }
+[data-theme="metal"] .amp-label { color: var(--gold-dim); background: #06080a; }
+[data-theme="metal"] .amp-screw { background: radial-gradient(circle at 35% 35%, #1a3040, #060810); border-color: #0a1828; }
+[data-theme="metal"] .amp-content a { color: var(--gold-dim); }
+[data-theme="metal"] .amp-content a:hover { color: var(--gold); }
+[data-theme="metal"] .amp-cmd { background: rgba(0,200,255,0.06); border-color: rgba(0,200,255,0.18); color: var(--text-dim); }
+
+/* ── FUNK THEME ──────────────────────────────── */
+[data-theme="funk"] {
+  --bg: #04100a;
+  --surface: #081a10;
+  --text: #d0f0d8;
+  --text-dim: #4a8a5a;
+  --text-muted: #225a32;
+  --gold: #40e878;
+  --gold-dim: #1a7838;
+  --correct: #40e878;
+  --wrong: #e84060;
+  --selected: rgba(64,232,120,0.12);
+  --border: rgba(64,232,120,0.2);
+}
+[data-theme="funk"] body {
+  background-color: #04100a;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
+    radial-gradient(ellipse at 20% 80%, rgba(64,232,120,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 20%, rgba(64,232,120,0.03) 0%, transparent 60%);
+}
+[data-theme="funk"] .menu-logo { font-family: 'Playfair Display', serif; font-style: italic; text-shadow: 0 0 40px rgba(64,232,120,0.5), 0 0 80px rgba(64,232,120,0.2); letter-spacing: 0.06em; }
+[data-theme="funk"] .menu-divider { background: linear-gradient(90deg, transparent, var(--gold), transparent); }
+[data-theme="funk"] .menu-item:hover, [data-theme="funk"] .menu-item.active { border-color: rgba(64,232,120,0.4); background: rgba(64,232,120,0.06); }
+[data-theme="funk"] .menu-item.active { border-color: rgba(64,232,120,0.7); }
+[data-theme="funk"] .menu-num { color: var(--gold-dim); }
+[data-theme="funk"] .progress-fill { background: linear-gradient(90deg, var(--gold-dim), var(--gold)); box-shadow: 0 0 8px var(--gold); }
+[data-theme="funk"] .note-input { background: #061208; border-color: var(--gold-dim); }
+[data-theme="funk"] .note-input:focus { border-color: var(--gold); box-shadow: 0 0 12px rgba(64,232,120,0.25); }
+[data-theme="funk"] .submit-btn { background: rgba(64,232,120,0.08); border-color: var(--gold-dim); color: var(--gold); }
+[data-theme="funk"] .submit-btn:hover { background: rgba(64,232,120,0.18); border-color: var(--gold); box-shadow: 0 0 12px rgba(64,232,120,0.25); }
+[data-theme="funk"] .back-btn { background: rgba(64,232,120,0.06); border-color: var(--border); }
+[data-theme="funk"] .back-btn:hover { color: var(--gold); background: rgba(64,232,120,0.14); border-color: var(--gold-dim); }
+[data-theme="funk"] .scale-btn.active { background: rgba(64,232,120,0.1); border-color: var(--gold); color: var(--gold); }
+[data-theme="funk"] .tweaks-panel { background: #061208; border-color: rgba(64,232,120,0.25); }
+[data-theme="funk"] .tweaks-title { color: var(--gold); }
+[data-theme="funk"] .tweak-opt.active { background: rgba(64,232,120,0.12); border-color: var(--gold); color: var(--gold); }
+[data-theme="funk"] .amp-panel { background: linear-gradient(180deg,#081a10 0%,#04100a 100%); border-color: #0a3018; box-shadow: 0 0 0 1px #061808, 0 4px 24px rgba(0,0,0,0.8), inset 0 1px 0 rgba(64,232,120,0.06); }
+[data-theme="funk"] .amp-panel::before { background: linear-gradient(90deg,transparent,rgba(64,232,120,0.3),transparent); }
+[data-theme="funk"] .amp-label { color: var(--gold-dim); background: #04100a; }
+[data-theme="funk"] .amp-screw { background: radial-gradient(circle at 35% 35%, #0a3020, #040c08); border-color: #061808; }
+[data-theme="funk"] .amp-content a { color: var(--gold-dim); }
+[data-theme="funk"] .amp-content a:hover { color: var(--gold); }
+[data-theme="funk"] .amp-cmd { background: rgba(64,232,120,0.06); border-color: rgba(64,232,120,0.18); color: var(--text-dim); }
+[data-theme="funk"] .theme-btn.active { background: rgba(64,232,120,0.1); border-color: var(--gold); color: var(--gold); }
 
 body {
   background-color: var(--bg);
@@ -400,7 +495,40 @@ body {
   text-align: center;
 }
 
-/* --- TWEAKS PANEL --- */
+/* --- THEME BAR --- */
+.theme-bar {
+  position: fixed; bottom: 16px; right: 16px;
+  display: flex; flex-direction: row; gap: 12px; align-items: flex-end;
+  z-index: 500;
+}
+.theme-group {
+  display: flex; flex-direction: column; gap: 4px; align-items: center;
+}
+.theme-group-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.55rem;
+  color: var(--text-muted);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.theme-group-btns { display: flex; gap: 4px; }
+.theme-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  padding: 5px 10px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 0.15s;
+  opacity: 0.7;
+}
+.theme-btn:hover { opacity: 1; border-color: var(--gold-dim); color: var(--text-dim); }
+.theme-btn.active { opacity: 1; background: rgba(200,144,48,0.12); border-color: var(--gold); color: var(--gold); }
+[data-theme="metal"] .theme-btn.active { background: rgba(0,200,255,0.1); border-color: var(--gold); color: var(--gold); }
+.theme-sep { width: 1px; height: 32px; background: var(--border); align-self: flex-end; margin-bottom: 4px; }
 .tweaks-panel {
   position: fixed; bottom: 20px; right: 20px;
   background: var(--surface);
@@ -549,13 +677,65 @@ function shuffleArr(arr) {
 /* ═══════════════════════════════════════
    FRETBOARD SVG
 ═══════════════════════════════════════ */
-function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both' }) {
+function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both', boardType='rosewood', theme='vintage' }) {
   const FW = 70, SH = 32, ML = 54, MT = 36, MB = 18;
   const W = ML + totalFrets * FW + 22;
   const H = MT + 5 * SH + MB;
   const cx = f => ML + (f - 0.5) * FW;
   const cy = s => MT + s * SH;
+  // Board colors — theme + board type aware
+  const isMaple = boardType === 'maple';
+  const isVintage = theme === 'vintage';
+  const accentColor = theme === 'metal' ? '#00c8ff' : theme === 'funk' ? '#40e878' : '#c89030';
+  const accentDim   = theme === 'metal' ? '#006888' : theme === 'funk' ? '#1a7838' : '#7a5820';
+
+  // Board wood
+  const boardTop    = isVintage ? (isMaple ? '#c8a878' : '#3c2010')
+                    : (isMaple  ? '#c8a878' : '#111214');
+  const boardMid    = isVintage ? (isMaple ? '#b89060' : '#2a1608')
+                    : (isMaple  ? '#b89060' : '#0a0c0e');
+  const boardBot    = isVintage ? (isMaple ? '#c8a878' : '#3c2010')
+                    : (isMaple  ? '#c8a878' : '#111214');
+  const grainColor  = isVintage ? (isMaple ? 'rgba(0,0,0,0.06)' : 'rgba(0,0,0,0.12)')
+                    : (isMaple  ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.02)');
+
+  // Inlays
+  const inlayFill   = isVintage ? (isMaple ? 'rgba(60,40,20,0.35)'    : 'rgba(240,220,178,0.32)')
+                    : (isMaple  ? 'rgba(60,40,20,0.35)' : `rgba(${theme==='metal'?'0,200,255':'64,232,120'},0.18)`);
+  const inlayStroke = isVintage ? (isMaple ? 'rgba(40,20,10,0.15)'    : 'rgba(240,220,178,0.12)')
+                    : (isMaple  ? 'rgba(40,20,10,0.15)' : `rgba(${theme==='metal'?'0,200,255':'64,232,120'},0.35)`);
+
+  // Nut
+  const nutTop      = isMaple ? '#f8f0e0' : (isVintage ? '#f0e0b0' : '#303438');
+  const nutBot      = isMaple ? '#d8c8a0' : (isVintage ? '#c8a860' : '#1a1e22');
+
+  // Frets
+  const fretColor   = isVintage ? (isMaple ? '#8a7858' : '#8a6420')
+                    : (isMaple  ? '#8a7858' : '#2a3038');
+  const fret12Color = isVintage ? (isMaple ? '#b0986a' : '#b08840')
+                    : (isMaple  ? '#b0986a' : '#3a4450');
+
+  // Strings
+  const stringColor = isVintage ? (isMaple ? '#3a2a0a' : '#c8a030')
+                    : (isMaple  ? '#3a2a0a' : '#8090a0');
+
+  // Labels
+  const labelFill         = isVintage ? (isMaple ? '#7a6040' : '#6a5830')
+                          : (isMaple  ? '#7a6040' : accentDim);
+  const stringLabelColor  = isVintage ? (isMaple ? '#a07828' : '#c89030')
+                          : (isMaple  ? accentColor : accentColor);
+
+  // Revealed note circles
+  const noteCircleBg     = isVintage ? (isMaple ? 'rgba(180,130,60,0.9)' : 'rgba(42,22,8,0.85)')
+                         : (isMaple  ? 'rgba(180,130,60,0.9)' : 'rgba(10,14,20,0.92)');
+  const noteCircleStroke = isVintage ? (isMaple ? 'rgba(120,80,20,0.7)'  : 'rgba(200,144,48,0.6)')
+                         : (isMaple  ? 'rgba(120,80,20,0.7)'  : `${accentColor}99`);
+  const noteTextColor    = isVintage ? (isMaple ? '#5a3a10' : '#d4902a')
+                         : (isMaple  ? '#5a3a10' : accentColor);
+
   const stringWidths = [1.0, 1.3, 1.7, 2.2, 2.8, 3.5];
+
+
   const INLAY = [3,5,7,9];
   const INLAY2 = [12];
   const FRET_LABELS = [1,3,5,7,9,12];
@@ -567,13 +747,13 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{minWidth: W}}>
       <defs>
         <linearGradient id="bgrd" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#3c2010"/>
-          <stop offset="40%" stopColor="#2a1608"/>
-          <stop offset="100%" stopColor="#3c2010"/>
+          <stop offset="0%" stopColor={boardTop}/>
+          <stop offset="40%" stopColor={boardMid}/>
+          <stop offset="100%" stopColor={boardBot}/>
         </linearGradient>
         <linearGradient id="nutGrad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0%" stopColor="#f0e0b0"/>
-          <stop offset="100%" stopColor="#c8a860"/>
+          <stop offset="0%" stopColor={nutTop}/>
+          <stop offset="100%" stopColor={nutBot}/>
         </linearGradient>
         <filter id="glow">
           <feGaussianBlur stdDeviation="3" result="blur"/>
@@ -590,7 +770,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
         <line key={i}
           x1={ML} y1={MT - SH*0.55 + t*(5*SH+SH*1.1)}
           x2={ML+totalFrets*FW} y2={MT - SH*0.55 + t*(5*SH+SH*1.1)}
-          stroke="rgba(0,0,0,0.12)" strokeWidth="1"/>
+          stroke={grainColor} strokeWidth="1"/>
       ))}
 
       {/* Fret set highlight */}
@@ -616,13 +796,13 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       )}
 
       {/* Inlay dots */}
-      {INLAY.map(f => (
+      {INLAY.map(f => f <= totalFrets && (
         <circle key={f} cx={cx(f)} cy={MT + 2.5*SH} r={5.5}
-          fill="rgba(240,220,178,0.32)" stroke="rgba(240,220,178,0.12)" strokeWidth="0.5"/>
+          fill={inlayFill} stroke={inlayStroke} strokeWidth="0.5"/>
       ))}
-      {INLAY2.map(f => [1.2, 3.8].map((sv,i) => (
+      {INLAY2.filter(f => f <= totalFrets).map(f => [1.2, 3.8].map((sv,i) => (
         <circle key={`${f}-${i}`} cx={cx(f)} cy={MT + sv*SH} r={5.5}
-          fill="rgba(240,220,178,0.32)" stroke="rgba(240,220,178,0.12)" strokeWidth="0.5"/>
+          fill={inlayFill} stroke={inlayStroke} strokeWidth="0.5"/>
       )))}
 
       {/* Nut */}
@@ -634,7 +814,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
         <line key={f}
           x1={ML+f*FW} y1={MT-SH*0.55}
           x2={ML+f*FW} y2={MT+5*SH+SH*0.55}
-          stroke={f===12?"#b08840":"#8a6420"}
+          stroke={f===12?fret12Color:fretColor}
           strokeWidth={f===12?2.5:1.5}/>
       ))}
 
@@ -642,19 +822,19 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       {STRINGS.map((_, s) => (
         <line key={s}
           x1={ML-5} y1={cy(s)} x2={ML+totalFrets*FW+1} y2={cy(s)}
-          stroke="#c8a030" strokeWidth={stringWidths[s]} opacity="0.85"/>
+          stroke={stringColor} strokeWidth={stringWidths[s]} opacity="0.85"/>
       ))}
 
       {/* Fret number labels */}
       {FRET_LABELS.filter(f=>f<=totalFrets).map(f => (
         <text key={f} x={cx(f)} y={MT-16} textAnchor="middle"
-          fill="#6a5830" fontSize="11" fontFamily="'DM Mono',monospace">{f}</text>
+          fill={labelFill} fontSize="11" fontFamily="'DM Mono',monospace">{f}</text>
       ))}
 
       {/* String labels */}
       {STRINGS.map((n, s) => (
         <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
-          fill="#c89030" fontSize="13" fontWeight="600"
+          fill={stringLabelColor} fontSize="13" fontWeight="600"
           fontFamily="'DM Mono',monospace">{n}</text>
       ))}
 
@@ -663,9 +843,9 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
         const [s,f] = key.split('-').map(Number);
         return (
           <g key={key}>
-            <circle cx={cx(f)} cy={cy(s)} r={13} fill="rgba(42,22,8,0.85)" stroke="rgba(200,144,48,0.6)" strokeWidth="1"/>
+            <circle cx={cx(f)} cy={cy(s)} r={13} fill={noteCircleBg} stroke={noteCircleStroke} strokeWidth="1"/>
             <text x={cx(f)} y={cy(s)+4} textAnchor="middle"
-              fill="#d4902a" fontSize={showNote(noteAt(s,f),noteStyle).includes('/')? 8 : 11}
+              fill={noteTextColor} fontSize={showNote(noteAt(s,f),noteStyle).includes('/')? 8 : 11}
               fontFamily="'DM Mono',monospace" fontWeight="500">{showNote(noteAt(s,f),noteStyle)}</text>
           </g>
         );
@@ -760,6 +940,11 @@ function RandomNoteGame({ onBack, tweaks }) {
   useEffect(() => { startTimer(); }, []);
   useEffect(() => { if (!feedback) inputRef.current?.focus(); }, [feedback]);
   useEffect(() => { inputRef.current?.focus(); }, [qi]);
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onBack(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const current = queue[qi % queue.length];
   const expected = current ? noteAt(current.s, current.f) : null;
@@ -831,7 +1016,7 @@ function RandomNoteGame({ onBack, tweaks }) {
       </div>
 
       <div className="fretboard-wrap">
-        <Fretboard markers={markers} totalFrets={totalFrets} noteStyle={tweaks.noteStyle}/>
+        <Fretboard markers={markers} totalFrets={totalFrets} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
       </div>
 
       <div className="input-area">
@@ -909,6 +1094,11 @@ function FindNotesGame({ onBack, tweaks }) {
   const [time, startTimer, stopTimer] = useTimer();
 
   useEffect(() => { startTimer(); }, []);
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onBack(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const targetNote = noteQueue[noteQi] ?? null;
   const targetPositions = targetNote ? positionsOfNote(targetNote, fretSet) : [];
@@ -991,7 +1181,7 @@ function FindNotesGame({ onBack, tweaks }) {
       </div>
 
       <div className="fretboard-wrap">
-        <Fretboard markers={markers} onCellClick={clickCell} fretSet={fretSet} interactive={true} totalFrets={12} noteStyle={tweaks.noteStyle}/>
+        <Fretboard markers={markers} onCellClick={clickCell} fretSet={fretSet} interactive={true} totalFrets={12} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
       </div>
 
       <div className="input-area">
@@ -1110,6 +1300,11 @@ function ChordGame({ onBack, tweaks }) {
 
   useEffect(() => { startTimer(); }, []);
   useEffect(() => { inputRef.current?.focus(); }, [ci, phase, intervalIdx]);
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onBack(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   const chord = chords[ci % chords.length];
 
@@ -1212,7 +1407,7 @@ function ChordGame({ onBack, tweaks }) {
       </div>
 
       <div className="fretboard-wrap">
-        <Fretboard markers={markers} totalFrets={tweaks.frets} noteStyle={tweaks.noteStyle}/>
+        <Fretboard markers={markers} totalFrets={tweaks.frets} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
       </div>
 
       <div className="input-area">
@@ -1344,7 +1539,7 @@ function FreeLearn({ onBack, tweaks }) {
           interactive={true}
           selectedCell={sel}
           totalFrets={totalFrets}
-          noteStyle={tweaks.noteStyle}
+          noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}
         />
       </div>
 
@@ -1477,14 +1672,59 @@ function Menu({ onSelect }) {
 ═══════════════════════════════════════ */
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "frets": 12,
-  "showInlays": true,
-  "noteStyle": "sharp"
+  "noteStyle": "sharp",
+  "theme": "vintage",
+  "board": "rosewood"
 }/*EDITMODE-END*/;
+
+function ThemeBar({ tweaks, setTweaks }) {
+  return (
+    <div className="theme-bar">
+      <div className="theme-group">
+        <div className="theme-group-label">Design</div>
+        <div className="theme-group-btns">
+          {[['vintage','Vintage'],['metal','Metal'],['funk','Funk']].map(([val,label]) => (
+            <button key={val} className={`theme-btn ${tweaks.theme===val?'active':''}`}
+              onClick={() => setTweaks(t=>({...t,theme:val}))}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="theme-sep"/>
+      <div className="theme-group">
+        <div className="theme-group-label">Fretboard</div>
+        <div className="theme-group-btns">
+          {[['rosewood','Rosewood'],['maple','Maple']].map(([val,label]) => (
+            <button key={val} className={`theme-btn ${tweaks.board===val?'active':''}`}
+              onClick={() => setTweaks(t=>({...t,board:val}))}>{label}</button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function TweaksPanel({ tweaks, setTweaks }) {
   return (
     <div className="tweaks-panel">
       <div className="tweaks-title">Tweaks</div>
+      <div className="tweak-row">
+        <div className="tweak-label">THEME</div>
+        <div className="tweak-options">
+          {[['vintage','Vintage'],['metal','Metal'],['funk','Funk']].map(([val,label]) => (
+            <button key={val} className={`tweak-opt ${tweaks.theme===val?'active':''}`}
+              onClick={() => setTweaks(t=>({...t,theme:val}))}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="tweak-row">
+        <div className="tweak-label">FINGERBOARD</div>
+        <div className="tweak-options">
+          {[['rosewood','Rosewood'],['maple','Maple']].map(([val,label]) => (
+            <button key={val} className={`tweak-opt ${tweaks.board===val?'active':''}`}
+              onClick={() => setTweaks(t=>({...t,board:val}))}>{label}</button>
+          ))}
+        </div>
+      </div>
       <div className="tweak-row">
         <div className="tweak-label">FRETS</div>
         <div className="tweak-options">
@@ -1515,6 +1755,15 @@ function App() {
   const [tweaksOpen, setTweaksOpen] = useState(false);
   const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
 
+  // Apply theme + board to <html>
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', tweaks.theme);
+    document.documentElement.setAttribute('data-board', tweaks.board);
+    document.body.style.backgroundColor =
+      tweaks.theme === 'metal' ? '#06080a' :
+      tweaks.theme === 'funk'  ? '#04100a' : '';
+  }, [tweaks.theme, tweaks.board]);
+
   useEffect(() => {
     if (mode) localStorage.setItem('frem_mode', mode);
     else localStorage.removeItem('frem_mode');
@@ -1542,6 +1791,7 @@ function App() {
       {mode==='free' && <FreeLearn onBack={back} tweaks={tweaks}/>}
       {mode==='notes' && <NoteListGame onBack={back}/>}
       {tweaksOpen && <TweaksPanel tweaks={tweaks} setTweaks={handleTweaks}/>}
+      <ThemeBar tweaks={tweaks} setTweaks={handleTweaks}/>
     </>
   );
 }

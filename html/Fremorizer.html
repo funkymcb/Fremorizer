@@ -316,7 +316,7 @@ body {
   -webkit-overflow-scrolling: touch;
   padding: 8px 0;
   display: flex;
-  justify-content: center;
+  /* justify-content handled via scroll */
 }
 .fretboard-wrap svg { display: block; }
 
@@ -916,6 +916,16 @@ function useTimer() {
   useEffect(() => () => clearInterval(ref.current), []);
   return [t, start, stop];
 }
+
+/* ═══════════════════════════════════════
+   SCROLL UTILITY
+═══════════════════════════════════════ */
+const FW_CONST = 70, ML_CONST = 54;
+function scrollFretboard(el, fret, behavior='smooth') {
+  if (!el) return;
+  const x = ML_CONST + (fret - 0.5) * FW_CONST;
+  el.scrollTo({ left: Math.max(0, x - el.clientWidth / 2), behavior });
+}
 /* ═══════════════════════════════════════
    GAME MODE 1: RANDOM NOTE
 ═══════════════════════════════════════ */
@@ -935,11 +945,13 @@ function RandomNoteGame({ onBack, tweaks }) {
   const [finished, setFinished] = useState(false);
   const [time, startTimer, stopTimer] = useTimer();
   const inputRef = useRef(null);
+  const fretWrapRef1 = useRef(null);
   const [flashing, setFlashing] = useState(false);
 
   useEffect(() => { startTimer(); }, []);
   useEffect(() => { if (!feedback) inputRef.current?.focus(); }, [feedback]);
   useEffect(() => { inputRef.current?.focus(); }, [qi]);
+  useEffect(() => { if (current) scrollFretboard(fretWrapRef1.current, current.f); }, [qi]);
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onBack(); }
     window.addEventListener('keydown', onKey);
@@ -1015,7 +1027,7 @@ function RandomNoteGame({ onBack, tweaks }) {
         <button className="back-btn" onClick={onBack}>← back</button>
       </div>
 
-      <div className="fretboard-wrap">
+      <div className="fretboard-wrap" ref={fretWrapRef1}>
         <Fretboard markers={markers} totalFrets={totalFrets} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
       </div>
 
@@ -1093,12 +1105,17 @@ function FindNotesGame({ onBack, tweaks }) {
   const [finished, setFinished] = useState(false);
   const [time, startTimer, stopTimer] = useTimer();
 
+  const fretWrapRef2 = useRef(null);
   useEffect(() => { startTimer(); }, []);
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onBack(); }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+  useEffect(() => {
+    const midFret = Math.round((fretSet[0] + fretSet[1]) / 2);
+    scrollFretboard(fretWrapRef2.current, midFret);
+  }, [setIdx]);
 
   const targetNote = noteQueue[noteQi] ?? null;
   const targetPositions = targetNote ? positionsOfNote(targetNote, fretSet) : [];
@@ -1180,7 +1197,7 @@ function FindNotesGame({ onBack, tweaks }) {
         <button className="back-btn" onClick={onBack}>← back</button>
       </div>
 
-      <div className="fretboard-wrap">
+      <div className="fretboard-wrap" ref={fretWrapRef2}>
         <Fretboard markers={markers} onCellClick={clickCell} fretSet={fretSet} interactive={true} totalFrets={12} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
       </div>
 
@@ -1297,9 +1314,16 @@ function ChordGame({ onBack, tweaks }) {
   const [solvedSymbols, setSolvedSymbols] = useState(new Set());
   const [time, startTimer, stopTimer] = useTimer();
   const inputRef = useRef(null);
+  const fretWrapRef3 = useRef(null);
 
   useEffect(() => { startTimer(); }, []);
   useEffect(() => { inputRef.current?.focus(); }, [ci, phase, intervalIdx]);
+  useEffect(() => {
+    if (chord?.positions?.length) {
+      const avgFret = Math.round(chord.positions.reduce((s,p) => s+p.f, 0) / chord.positions.length);
+      scrollFretboard(fretWrapRef3.current, Math.max(1, avgFret));
+    }
+  }, [ci]);
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onBack(); }
     window.addEventListener('keydown', onKey);
@@ -1406,7 +1430,7 @@ function ChordGame({ onBack, tweaks }) {
         <button className="back-btn" onClick={onBack}>← back</button>
       </div>
 
-      <div className="fretboard-wrap">
+      <div className="fretboard-wrap" ref={fretWrapRef3}>
         <Fretboard markers={markers} totalFrets={tweaks.frets} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
       </div>
 
@@ -1479,6 +1503,7 @@ function FreeLearn({ onBack, tweaks }) {
   const totalFrets = tweaks.frets;
   const [revealed, setRevealed] = useState({});
   const [sel, setSel] = useState({s:0,f:1});
+  const fretWrapRef4 = useRef(null);
   const [scaleRoot, setScaleRoot] = useState('C');
   const [scaleType, setScaleType] = useState(null);
 
@@ -1511,6 +1536,7 @@ function FreeLearn({ onBack, tweaks }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [sel, revealed, totalFrets]);
+  useEffect(() => { scrollFretboard(fretWrapRef4.current, sel.f); }, [sel.f]);
 
   // Build scale markers
   const scaleMarkers = [];
@@ -1531,7 +1557,7 @@ function FreeLearn({ onBack, tweaks }) {
         <button className="back-btn" onClick={onBack}>← back</button>
       </div>
 
-      <div className="fretboard-wrap">
+      <div className="fretboard-wrap" ref={fretWrapRef4}>
         <Fretboard
           markers={scaleMarkers}
           showNotes={revealed}
@@ -1589,7 +1615,7 @@ function NoteListGame({ onBack }) {
         <button className="back-btn" onClick={onBack}>← back</button>
       </div>
 
-      <div className="note-list-wrap" key={key}>
+      <div className="note-list-wrap" key={key} onTouchStart={shuffle} style={{cursor:'pointer'}}>
         <div className="note-list-title">Chromatic Scale</div>
         <div className="note-list-items">
           {notes.map((n) => (
@@ -1597,7 +1623,7 @@ function NoteListGame({ onBack }) {
           ))}
         </div>
         <div className="note-list-hint" style={{marginTop:24}}>
-          <span>n</span>: shuffle &nbsp; <span>Esc</span>: back
+          <span>tap</span> / <span>n</span>: shuffle &nbsp; <span>Esc</span>: back
         </div>
       </div>
     </div>

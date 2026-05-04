@@ -17,6 +17,9 @@ import (
 //go:embed html/Fremorizer.html
 var htmlPage []byte
 
+//go:embed html/styles.css
+var cssPage []byte
+
 func serveHTTP(domain, addr string) {
 	if addr != "" {
 		serveHTTPProxy(addr)
@@ -135,6 +138,12 @@ func serveHTTPStandalone(domain string) {
 // security headers.
 func pageHandler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/styles.css", func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Type", "text/css; charset=utf-8")
+		h.Set("Cache-Control", "public, max-age=86400")
+		w.Write(cssPage)
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
@@ -146,7 +155,7 @@ func pageHandler() http.Handler {
 		h.Set("Content-Security-Policy",
 			"default-src 'none'; "+
 				"script-src https://unpkg.com 'unsafe-inline' 'unsafe-eval'; "+
-				"style-src https://fonts.googleapis.com 'unsafe-inline'; "+
+				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
 				"font-src https://fonts.gstatic.com; "+
 				"connect-src 'none'; "+
 				"img-src 'none'; "+

@@ -114,7 +114,7 @@
 [data-theme="funk"] .amp-cmd { background: rgba(64,232,120,0.06); border-color: rgba(64,232,120,0.18); color: var(--text-dim); }
 [data-theme="funk"] .theme-btn.active { background: rgba(64,232,120,0.1); border-color: var(--gold); color: var(--gold); }
 
-html { overflow-x: hidden; }
+html { overflow-x: clip; }
 body {
   background-color: var(--bg);
   background-image:
@@ -300,10 +300,9 @@ body {
 /* --- FRETBOARD WRAPPER --- */
 .fretboard-wrap {
   width: 100%;
-  overflow-x: scroll;
+  overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   padding: 8px 0;
-  scroll-behavior: smooth;
 }
 .fretboard-wrap svg { display: block; }
 

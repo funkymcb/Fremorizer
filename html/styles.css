@@ -308,6 +308,10 @@ body {
   padding: 8px 0;
 }
 .fretboard-wrap svg { display: block; }
+@media (max-width: 960px) {
+  .fretboard-wrap { overflow-x: visible; }
+  .fretboard-wrap svg { width: 100%; height: auto; }
+}
 
 /* --- INPUT AREA --- */
 .input-area {
@@ -476,6 +480,31 @@ body {
   cursor: pointer;
   outline: none;
 }
+
+/* --- NOTE KEYBOARD (mobile) --- */
+.note-keyboard {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  max-width: 360px;
+}
+.note-key {
+  font-family: 'DM Mono', monospace;
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-width: 44px;
+  padding: 10px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.12s;
+  -webkit-tap-highlight-color: transparent;
+}
+.note-key:active { background: var(--selected); border-color: var(--gold); color: var(--gold); }
+.note-key:disabled { opacity: 0.4; pointer-events: none; }
 
 /* --- CHORD MODE --- */
 .chord-input-wide {

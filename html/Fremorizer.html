@@ -167,7 +167,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
   const markerAt = (s,f) => markers.find(m => m.s===s && m.f===f);
 
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{minWidth: W}}>
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
       <defs>
         <linearGradient id="bgrd" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={boardTop}/>
@@ -341,6 +341,24 @@ function useTimer() {
 }
 
 /* ═══════════════════════════════════════
+   MOBILE NOTE KEYBOARD
+═══════════════════════════════════════ */
+const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
+function NoteKeyboard({ onNote, disabled, noteStyle='both' }) {
+  return (
+    <div className="note-keyboard">
+      {CHROMATIC.map(n => (
+        <button key={n} className="note-key" disabled={disabled}
+          onClick={() => onNote(n)}>
+          {showNote(n, noteStyle)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
    STATS PERSISTENCE
 ═══════════════════════════════════════ */
 const STATS_KEY = 'frem_stats';
@@ -392,9 +410,9 @@ function RandomNoteGame({ onBack, tweaks }) {
   const current = queue[qi % queue.length];
   const expected = current ? noteAt(current.s, current.f) : null;
 
-  function submit() {
-    if (!input.trim() || !current) return;
-    if (matchNote(input, expected)) {
+  function handleAnswer(note) {
+    if (!current) return;
+    if (note === expected) {
       const newDone = new Set(done); newDone.add(`${current.s}-${current.f}`);
       setDone(newDone);
       setStreak(s => s+1);
@@ -414,6 +432,11 @@ function RandomNoteGame({ onBack, tweaks }) {
         setInput('');
       }, 600);
     }
+  }
+
+  function submit() {
+    if (!input.trim()) return;
+    handleAnswer(matchNote(input, expected) ? expected : input);
   }
 
   if (finished) return (
@@ -464,20 +487,24 @@ function RandomNoteGame({ onBack, tweaks }) {
 
       <div className="input-area">
         <div className="prompt-text">Find the note!</div>
-        <div className="note-input-row">
-          <input
-            ref={inputRef}
-            className={`note-input ${feedback||''} ${flashing?'flash':''}`}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => e.key==='Enter' && submit()}
-            placeholder="note…"
-            maxLength={4}
-            disabled={!!feedback}
-            autoComplete="off" autoCorrect="off" spellCheck="false"
-          />
-          <button className="submit-btn" onClick={submit}>Enter ↵</button>
-        </div>
+        {isMobile ? (
+          <NoteKeyboard onNote={n => !feedback && handleAnswer(n)} disabled={!!feedback} noteStyle={tweaks.noteStyle}/>
+        ) : (
+          <div className="note-input-row">
+            <input
+              ref={inputRef}
+              className={`note-input ${feedback||''} ${flashing?'flash':''}`}
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => e.key==='Enter' && submit()}
+              placeholder="note…"
+              maxLength={4}
+              disabled={!!feedback}
+              autoComplete="off" autoCorrect="off" spellCheck="false"
+            />
+            <button className="submit-btn" onClick={submit}>Enter ↵</button>
+          </div>
+        )}
         <div className={`feedback-msg ${feedback||''}`}>
           {feedback==='correct' && '✓ Correct!'}
           {feedback==='wrong' && '✗ Wrong answer, try again'}

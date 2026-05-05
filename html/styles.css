@@ -311,6 +311,7 @@ body {
 @media (max-width: 960px) {
   .fretboard-wrap { overflow-x: visible; }
   .fretboard-wrap svg { width: 100%; height: auto; }
+  .theme-bar { display: none; }
 }
 
 /* --- INPUT AREA --- */

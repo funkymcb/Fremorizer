@@ -1065,7 +1065,7 @@ function NoteListGame({ onBack }) {
         <button className="back-btn" onClick={onBack}>← back</button>
       </div>
 
-      <div className="note-list-wrap" key={key} onTouchStart={shuffle} style={{cursor:'pointer'}}>
+      <div className="note-list-wrap" key={key} onTouchStart={shuffle} style={{cursor:'pointer',WebkitTapHighlightColor:'transparent'}}>
         <div className="note-list-title">Chromatic Scale</div>
         <div className="note-list-items">
           {notes.map((n) => (

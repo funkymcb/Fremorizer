@@ -358,6 +358,53 @@ function NoteKeyboard({ onNote, disabled, noteStyle='both' }) {
   );
 }
 
+const CHORD_QUALITIES = ['major', 'minor', '7'];
+
+function ChordKeyboard({ onChord, disabled, noteStyle='both' }) {
+  const [root, setRoot] = useState(null);
+
+  function pickRoot(n) {
+    setRoot(n);
+  }
+
+  function pickQuality(q) {
+    if (!root) return;
+    const name = q === '7' ? root + '7' : root + ' ' + q;
+    onChord(name);
+    setRoot(null);
+  }
+
+  useEffect(() => { if (disabled) setRoot(null); }, [disabled]);
+
+  if (root) {
+    return (
+      <div className="note-keyboard">
+        <div style={{width:'100%',textAlign:'center',fontFamily:'DM Mono',fontSize:'0.75rem',
+          color:'var(--text-muted)',marginBottom:4}}>
+          Root: <span style={{color:'var(--gold)'}}>{showNote(root, noteStyle)}</span>
+        </div>
+        {CHORD_QUALITIES.map(q => (
+          <button key={q} className="note-key" style={{minWidth:70}} disabled={disabled}
+            onClick={() => pickQuality(q)}>{q}</button>
+        ))}
+        <button className="note-key" style={{minWidth:70,color:'var(--text-muted)'}}
+          onClick={() => setRoot(null)}>← back</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="note-keyboard">
+      {CHROMATIC.map(n => (
+        <button key={n} className="note-key" disabled={disabled}
+          onClick={() => pickRoot(n)}>
+          {showNote(n, noteStyle)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════
    STATS PERSISTENCE
 ═══════════════════════════════════════ */
@@ -798,32 +845,28 @@ function ChordGame({ onBack, tweaks }) {
     }
   }
 
-  function submit() {
-    if (!input.trim()) return;
-
-    if (phase === 'naming') {
-      const norm = input.trim().toLowerCase().replace(/\s+/g,' ');
-      if (chordNameCorrect(norm, chord.name.toLowerCase())) {
-        setFeedback('correct');
-        const ivs = buildChordIntervals(chord);
-        setTimeout(() => {
-          setFeedback(null); setInput('');
-          setIntervals(ivs);
-          setIntervalIdx(0);
-          setSolvedSymbols(new Set());
-          setPhase('intervals');
-        }, 600);
-      } else {
-        setFeedback('wrong');
-        setTimeout(() => { setFeedback(null); setInput(''); inputRef.current?.focus(); }, 1200);
-      }
-      return;
+  function handleNaming(name) {
+    const norm = name.trim().toLowerCase().replace(/\s+/g,' ');
+    if (chordNameCorrect(norm, chord.name.toLowerCase())) {
+      setFeedback('correct');
+      const ivs = buildChordIntervals(chord);
+      setTimeout(() => {
+        setFeedback(null); setInput('');
+        setIntervals(ivs);
+        setIntervalIdx(0);
+        setSolvedSymbols(new Set());
+        setPhase('intervals');
+      }, 600);
+    } else {
+      setFeedback('wrong');
+      setTimeout(() => { setFeedback(null); setInput(''); inputRef.current?.focus(); }, 1200);
     }
+  }
 
-    // intervals phase
+  function handleInterval(note) {
     const current = intervals[intervalIdx];
     if (!current) return;
-    if (matchNote(input, current.note)) {
+    if (note === current.note) {
       const newSolved = new Set(solvedSymbols);
       newSolved.add(current.symbol);
       setSolvedSymbols(newSolved);
@@ -839,6 +882,17 @@ function ChordGame({ onBack, tweaks }) {
     } else {
       setFeedback('wrong');
       setTimeout(() => { setFeedback(null); setInput(''); inputRef.current?.focus(); }, 1200);
+    }
+  }
+
+  function submit() {
+    if (!input.trim()) return;
+    if (phase === 'naming') {
+      handleNaming(input);
+    } else {
+      const current = intervals[intervalIdx];
+      if (current && matchNote(input, current.note)) handleInterval(current.note);
+      else handleInterval(input);
     }
   }
 
@@ -889,22 +943,26 @@ function ChordGame({ onBack, tweaks }) {
       <div className="input-area">
         {phase === 'naming' ? (<>
           <div className="prompt-text">Which chord is this?</div>
-          <div className="note-input-row">
-            <input ref={inputRef}
-              className={`note-input chord-input-wide ${feedback||''}`}
-              value={input} onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key==='Enter' && submit()}
-              placeholder="chord name…" disabled={feedback==='correct'}
-              autoComplete="off" spellCheck="false"/>
-            <button className="submit-btn" onClick={submit}>Enter ↵</button>
-          </div>
+          {isMobile ? (
+            <ChordKeyboard onChord={name => !feedback && handleNaming(name)} disabled={!!feedback} noteStyle={tweaks.noteStyle}/>
+          ) : (
+            <div className="note-input-row">
+              <input ref={inputRef}
+                className={`note-input chord-input-wide ${feedback||''}`}
+                value={input} onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key==='Enter' && submit()}
+                placeholder="chord name…" disabled={feedback==='correct'}
+                autoComplete="off" spellCheck="false"/>
+              <button className="submit-btn" onClick={submit}>Enter ↵</button>
+            </div>
+          )}
           <div className={`feedback-msg ${feedback||''}`}>
             {feedback==='correct' && '✓ Correct!'}
             {feedback==='wrong' && '✗ Wrong, try again!'}
           </div>
-          <div style={{fontFamily:'DM Mono',fontSize:'0.68rem',color:'var(--text-muted)',marginTop:4}}>
+          {!isMobile && <div style={{fontFamily:'DM Mono',fontSize:'0.68rem',color:'var(--text-muted)',marginTop:4}}>
             Numbers show intervals: 1=root  3=major 3rd  b3=minor 3rd  5=fifth  b7=minor 7th
-          </div>
+          </div>}
         </>) : (<>
           <div style={{fontFamily:'DM Mono',fontSize:'0.75rem',color:'var(--text-muted)',marginBottom:6}}>
             Chord: <span style={{color:'var(--gold)',fontWeight:700}}>{chord.name}</span>
@@ -913,16 +971,20 @@ function ChordGame({ onBack, tweaks }) {
           <div className="prompt-text">
             What is the <span style={{color:'var(--gold)'}}>{currentIv && IV_LABEL[currentIv.symbol]}</span>?
           </div>
-          <div className="note-input-row">
-            <input ref={inputRef}
-              className={`note-input ${feedback||''}`}
-              value={input} onChange={e => setInput(e.target.value)}
-              onKeyDown={e => e.key==='Enter' && submit()}
-              placeholder="note…" maxLength={4}
-              disabled={feedback==='correct'}
-              autoComplete="off" spellCheck="false"/>
-            <button className="submit-btn" onClick={submit}>Enter ↵</button>
-          </div>
+          {isMobile ? (
+            <NoteKeyboard onNote={n => !feedback && handleInterval(n)} disabled={!!feedback} noteStyle={tweaks.noteStyle}/>
+          ) : (
+            <div className="note-input-row">
+              <input ref={inputRef}
+                className={`note-input ${feedback||''}`}
+                value={input} onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key==='Enter' && submit()}
+                placeholder="note…" maxLength={4}
+                disabled={feedback==='correct'}
+                autoComplete="off" spellCheck="false"/>
+              <button className="submit-btn" onClick={submit}>Enter ↵</button>
+            </div>
+          )}
           <div className={`feedback-msg ${feedback||''}`}>
             {feedback==='correct' && '✓ Correct!'}
             {feedback==='wrong' && '✗ Wrong, try again!'}
@@ -1396,7 +1458,7 @@ function App() {
       {mode==='notes' && <NoteListGame onBack={back}/>}
       {mode==='stats' && <StatsView onBack={back}/>}
       {tweaksOpen && <TweaksPanel tweaks={tweaks} setTweaks={setTweaks}/>}
-      <ThemeBar tweaks={tweaks} setTweaks={setTweaks}/>
+      {mode && <ThemeBar tweaks={tweaks} setTweaks={setTweaks}/>}
     </>
   );
 }

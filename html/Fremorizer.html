@@ -214,7 +214,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
   const FW = 70, SH = 32, ML = 54, MT = 36, MB = 18;
   const W = ML + totalFrets * FW + 22;
   const H = MT + 5 * SH + MB;
-  const cx = f => ML + (f - 0.5) * FW;
+  const cx = f => f === 0 ? 14 : ML + (f - 0.5) * FW;
   const cy = s => MT + s * SH;
   // Board colors — theme + board type aware
   const isMaple = boardType === 'maple';
@@ -380,11 +380,13 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       {/* Revealed note labels (free mode) */}
       {Object.entries(showNotes).map(([key, note]) => {
         const [s,f] = key.split('-').map(Number);
+        const r = f===0 ? 11 : 13;
+        const fs = f===0 ? 9 : (showNote(noteAt(s,f),noteStyle).includes('/') ? 8 : 11);
         return (
           <g key={key}>
-            <circle cx={cx(f)} cy={cy(s)} r={13} fill={noteCircleBg} stroke={noteCircleStroke} strokeWidth="1"/>
+            <circle cx={cx(f)} cy={cy(s)} r={r} fill={noteCircleBg} stroke={noteCircleStroke} strokeWidth="1"/>
             <text x={cx(f)} y={cy(s)+4} textAnchor="middle"
-              fill={noteTextColor} fontSize={showNote(noteAt(s,f),noteStyle).includes('/')? 8 : 11}
+              fill={noteTextColor} fontSize={fs}
               fontFamily="'DM Mono',monospace" fontWeight="500">{showNote(noteAt(s,f),noteStyle)}</text>
           </g>
         );
@@ -428,20 +430,21 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       {/* Selected cell highlight (free mode) */}
       {selectedCell && !markerAt(selectedCell.s, selectedCell.f) && !showNotes[`${selectedCell.s}-${selectedCell.f}`] && (
         <rect
-          x={cx(selectedCell.f)-FW/2+2} y={cy(selectedCell.s)-SH/2+2}
-          width={FW-4} height={SH-4}
+          x={cx(selectedCell.f)-(selectedCell.f===0?14:FW/2-2)}
+          y={cy(selectedCell.s)-SH/2+2}
+          width={selectedCell.f===0 ? 28 : FW-4} height={SH-4}
           fill="rgba(200,144,48,0.12)" stroke="rgba(200,144,48,0.5)"
           strokeWidth="1" rx="2"/>
       )}
 
       {/* Interactive click areas */}
       {interactive && STRINGS.map((_,s) =>
-        Array.from({length:totalFrets},(_,fi)=>fi+1).map(f => {
-          const inRange = !fretSet || (f>=fretSet[0] && f<=fretSet[1]);
+        Array.from({length:totalFrets+1},(_,f)=>f).map(f => {
+          const inRange = !fretSet || (f===0 || (f>=fretSet[0] && f<=fretSet[1]));
           return (
             <rect key={`${s}-${f}`}
-              x={cx(f)-FW/2+1} y={cy(s)-SH/2}
-              width={FW-2} height={SH}
+              x={cx(f)-(f===0?14:FW/2-1)} y={cy(s)-SH/2}
+              width={f===0 ? 28 : FW-2} height={SH}
               fill="transparent"
               style={{cursor: inRange?'crosshair':'default'}}
               onClick={() => inRange && onCellClick && onCellClick(s,f)}/>
@@ -1225,7 +1228,7 @@ function FreeLearn({ onBack, tweaks }) {
       const {s,f} = sel;
       if (e.key==='ArrowUp'||e.key==='k') setSel({s:Math.max(0,s-1),f});
       else if (e.key==='ArrowDown'||e.key==='j') setSel({s:Math.min(5,s+1),f});
-      else if (e.key==='ArrowLeft'||e.key==='h') setSel({s,f:Math.max(1,f-1)});
+      else if (e.key==='ArrowLeft'||e.key==='h') setSel({s,f:Math.max(0,f-1)});
       else if (e.key==='ArrowRight'||e.key==='l') setSel({s,f:Math.min(totalFrets,f+1)});
       else if (e.key===' ') { e.preventDefault(); handleCellClick(s,f); }
       else if (e.key==='r') setRevealed({});
@@ -1234,6 +1237,36 @@ function FreeLearn({ onBack, tweaks }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [sel, revealed, totalFrets]);
+
+  // Match revealed notes against chord shapes
+  const matchedChords = (() => {
+    const keys = Object.keys(revealed);
+    if (keys.length < 3) return [];
+    const revSet = new Set(keys);
+    const revPositions = keys.map(k => { const [s,f] = k.split('-').map(Number); return {s,f}; });
+    const matches = [];
+    const seen = new Set();
+    for (const chord of CHORD_SHAPES) {
+      const posKeys = chord.positions.map(p => `${p.s}-${p.f}`);
+      // every chord position must be revealed
+      if (!posKeys.every(k => revSet.has(k))) continue;
+      // allow extra notes only at the barre fret (min fret of chord) on strings outside the shape
+      const chordSet = new Set(posKeys);
+      const minFret = Math.min(...chord.positions.map(p => p.f));
+      const extraOk = revPositions.every(rp => {
+        const k = `${rp.s}-${rp.f}`;
+        if (chordSet.has(k)) return true;
+        // extra note allowed if it's at the barre fret
+        return rp.f === minFret;
+      });
+      if (!extraOk) continue;
+      if (!seen.has(chord.name)) {
+        matches.push(chord);
+        seen.add(chord.name);
+      }
+    }
+    return matches;
+  })();
 
   // Build scale markers
   const scaleMarkers = [];
@@ -1265,6 +1298,15 @@ function FreeLearn({ onBack, tweaks }) {
           noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}
         />
       </div>
+
+      {matchedChords.length > 0 && (
+        <div style={{textAlign:'center',fontFamily:'DM Mono',fontSize:'0.85rem',
+          color:'var(--gold,#c89030)',padding:'6px 0'}}>
+          {matchedChords.map((c,i) => (
+            <span key={i}>{i > 0 ? ' · ' : ''}{c.name}</span>
+          ))}
+        </div>
+      )}
 
       <div className="scale-row">
         <select className="root-select" value={scaleRoot} onChange={e=>setScaleRoot(e.target.value)}>

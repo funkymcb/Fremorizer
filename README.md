@@ -1,6 +1,7 @@
 # Fremorizer
 
-TUI vibe coded (claude) in go to help you memorize the guitar fretboard utilizing [bubbletea](https://github.com/charmbracelet/bubbletea) TUI framework<br>
+Vibe coded (claude) TUI and HTML Tool in go to help you memorize the guitar fretboard.<br>
+Visit [Fremorizer](fremorizer.com) to see it in action or check [Installation](#installation) for the TUI version.<br>
 
 You can either explore the fretboard on your own:
 

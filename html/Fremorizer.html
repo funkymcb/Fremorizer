@@ -176,13 +176,24 @@ const CHORD_SHAPES = [
   { name:'Gm7',  positions:[{s:5,f:3,iv:'1'},{s:4,f:5,iv:'5'},{s:3,f:3,iv:'b7'},{s:2,f:3,iv:'b3'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
   { name:'Bbm7', positions:[{s:5,f:6,iv:'1'},{s:4,f:8,iv:'5'},{s:3,f:6,iv:'b7'},{s:2,f:6,iv:'b3'},{s:1,f:6,iv:'5'},{s:0,f:6,iv:'1'}] },
   // ── 9th chords (hard) ────────────────────────────────────────────────────
-  { name:'A9',  positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:0,iv:'b7'},{s:1,f:2,iv:'3'},{s:0,f:0,iv:'9'}] },  // open A9
+  { name:'A9',  positions:[{s:5,f:5,iv:'1'},{s:4,f:7,iv:'5'},{s:3,f:5,iv:'b7'},{s:2,f:6,iv:'3'},{s:1,f:5,iv:'5'},{s:0,f:7,iv:'9'}] },
   { name:'E9',  positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:0,iv:'b7'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:2,iv:'9'}] },
   { name:'G9',  positions:[{s:5,f:3,iv:'1'},{s:4,f:2,iv:'3'},{s:3,f:3,iv:'b7'},{s:2,f:2,iv:'9'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
   { name:'C9',  positions:[{s:4,f:3,iv:'1'},{s:3,f:2,iv:'3'},{s:2,f:3,iv:'b7'},{s:1,f:3,iv:'9'},{s:0,f:3,iv:'5'}] },
   // ── 7#9 chords (hard) ────────────────────────────────────────────────────
-  { name:'E7#9', positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:0,iv:'b7'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:3,iv:'#9'}] },  // Hendrix chord
+  // E-shape (Hendrix chord + barre)
+  { name:'E7#9', positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:0,iv:'b7'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:3,iv:'#9'}] },
+  { name:'F7#9', positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:1,iv:'b7'},{s:2,f:2,iv:'3'},{s:1,f:1,iv:'5'},{s:0,f:4,iv:'#9'}] },
+  { name:'G7#9', positions:[{s:5,f:3,iv:'1'},{s:4,f:5,iv:'5'},{s:3,f:3,iv:'b7'},{s:2,f:4,iv:'3'},{s:1,f:3,iv:'5'},{s:0,f:6,iv:'#9'}] },
+  { name:'Bb7#9',positions:[{s:5,f:6,iv:'1'},{s:4,f:8,iv:'5'},{s:3,f:6,iv:'b7'},{s:2,f:7,iv:'3'},{s:1,f:6,iv:'5'},{s:0,f:9,iv:'#9'}] },
+  // A-shape
   { name:'A7#9', positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:0,iv:'b7'},{s:1,f:2,iv:'3'},{s:0,f:3,iv:'#9'}] },
+  // compact shape (root on A string, 4 notes)
+  { name:'C7#9', positions:[{s:4,f:3,iv:'1'},{s:3,f:2,iv:'3'},{s:2,f:3,iv:'b7'},{s:1,f:4,iv:'#9'}] },
+  { name:'D7#9', positions:[{s:4,f:5,iv:'1'},{s:3,f:4,iv:'3'},{s:2,f:5,iv:'b7'},{s:1,f:6,iv:'#9'}] },
+  { name:'E7#9', positions:[{s:4,f:7,iv:'1'},{s:3,f:6,iv:'3'},{s:2,f:7,iv:'b7'},{s:1,f:8,iv:'#9'}] },
+  { name:'F7#9', positions:[{s:4,f:8,iv:'1'},{s:3,f:7,iv:'3'},{s:2,f:8,iv:'b7'},{s:1,f:9,iv:'#9'}] },
+  { name:'G7#9', positions:[{s:4,f:10,iv:'1'},{s:3,f:9,iv:'3'},{s:2,f:10,iv:'b7'},{s:1,f:11,iv:'#9'}] },
 ];
 
 const CHORD_GOAL = 20;
@@ -490,15 +501,29 @@ function getChordDifficulty(name) {
   return 'easy';
 }
 
-const DIFFICULTY_RANK = { easy: 0, medium: 1, hard: 2 };
+const DIFFICULTY_RANK = { easy: 0, medium: 1, hard: 2, pro: 2 };
+
+function isBasicBarreChord(chord) {
+  const n = chord.name.toLowerCase();
+  if (!n.endsWith(' major') && !n.endsWith(' minor')) return false;
+  const ps = chord.positions;
+  if (ps.length < 5) return false;
+  if (ps.some(p => p.f === 0)) return false;
+  const sorted = [...ps].sort((a, b) => b.s - a.s);
+  return sorted[0].iv === '1' && sorted[1].iv === '5';
+}
 
 function chordsForDifficulty(diff) {
   const rank = DIFFICULTY_RANK[diff] ?? 0;
-  return CHORD_SHAPES.filter(c => DIFFICULTY_RANK[getChordDifficulty(c.name)] <= rank);
+  return CHORD_SHAPES.filter(c => {
+    if (DIFFICULTY_RANK[getChordDifficulty(c.name)] > rank) return false;
+    if ((diff === 'hard' || diff === 'pro') && isBasicBarreChord(c)) return false;
+    return true;
+  });
 }
 
 function qualitiesForDifficulty(diff) {
-  if (diff === 'hard')   return CHORD_QUALITIES_HARD;
+  if (diff === 'hard' || diff === 'pro') return CHORD_QUALITIES_HARD;
   if (diff === 'medium') return CHORD_QUALITIES_MEDIUM;
   return CHORD_QUALITIES_EASY;
 }
@@ -936,7 +961,7 @@ function expandChordInput(s) {
 }
 
 function normalizeChordName(s) {
-  return s.trim().toLowerCase().replace(/\s+/g,' ');
+  return s.trim().toLowerCase().replace(/[()]/g,'').replace(/\s+/g,' ');
 }
 
 function matchesChordName(input, cname) {
@@ -1078,7 +1103,7 @@ function ChordGame({ onBack, tweaks }) {
 
   // During interval phase: hide labels on unsolved dots, reveal note names on solved ones
   const markers = chord.positions.map(({s, f, iv}) => {
-    if (phase === 'naming') return { s, f, type:'interval', label: iv };
+    if (phase === 'naming') return { s, f, type:'interval', label: diff === 'pro' ? '' : iv };
     const solved = solvedSymbols.has(iv);
     return {
       s, f,
@@ -1426,7 +1451,7 @@ function StatsView({ onBack }) {
 const MENU_ITEMS = [
   { id:'random',  label:'Guess a random note' },
   { id:'find',    label:'Find notes in a set of 3 frets' },
-  { id:'chord',   label:'Identify chord notes' },
+  { id:'chord',   label:'Identify Chords' },
   { id:'free',    label:'Free learning — explore the fretboard' },
   { id:'notes',   label:'Simple random note list' },
   { id:'stats',   label:'View session stats & progress' },
@@ -1535,6 +1560,7 @@ function ThemeBar({ tweaks, setTweaks }) {
 
 function TweaksPanel({ tweaks, setTweaks, onClose }) {
   const ref = useRef(null);
+  const [showChordInfo, setShowChordInfo] = useState(false);
   useEffect(() => {
     function onDocDown(e) {
       if (ref.current && !ref.current.contains(e.target)) onClose?.();
@@ -1586,21 +1612,30 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
         </div>
       </div>
       <div className="tweak-row">
-        <div className="tweak-label">CHORD DIFFICULTY</div>
+        <div className="tweak-label">
+          CHORD DIFFICULTY
+          <span onClick={() => setShowChordInfo(v => !v)}
+            style={{marginLeft:6,cursor:'pointer',display:'inline-block',width:16,height:16,
+              lineHeight:'16px',textAlign:'center',borderRadius:'50%',fontSize:'0.6rem',
+              fontWeight:700,border:'1px solid var(--text-muted)',color:'var(--text-muted)',
+              verticalAlign:'middle',userSelect:'none'}}>?</span>
+        </div>
         <div className="tweak-options">
-          {['easy','medium','hard'].map(d => (
+          {['easy','medium','hard','pro'].map(d => (
             <button key={d} className={`tweak-opt ${tweaks.chordDifficulty===d?'active':''}`}
               onClick={() => setTweaks(t=>({...t,chordDifficulty:d}))}>{d}</button>
           ))}
         </div>
       </div>
-      <div style={{padding:'8px 12px',fontSize:'0.7rem',fontFamily:'DM Mono',color:'var(--text-muted)',
-        lineHeight:1.5,borderTop:'1px solid var(--border-subtle,rgba(128,128,128,0.15))'}}>
-        <div style={{marginBottom:4,fontWeight:500,color:'var(--gold,#c89030)'}}>Chord difficulty info</div>
-        <div><b>Easy</b> — major, minor, dominant 7th</div>
-        <div><b>Medium</b> — + sus2, sus4, add9</div>
-        <div><b>Hard</b> — + maj7, m7, 9th, 7#9</div>
-      </div>
+      {showChordInfo && (
+        <div style={{padding:'8px 12px',fontSize:'0.7rem',fontFamily:'DM Mono',color:'var(--text-muted)',
+          lineHeight:1.5,borderTop:'1px solid var(--border-subtle,rgba(128,128,128,0.15))'}}>
+          <div><b>Easy</b> — major, minor, dominant 7th</div>
+          <div><b>Medium</b> — + sus2, sus4, add9</div>
+          <div><b>Hard</b> — + maj7, m7, 9th, 7#9</div>
+          <div><b>Pro</b> — same as hard, intervals hidden</div>
+        </div>
+      )}
     </div>
   );
 }

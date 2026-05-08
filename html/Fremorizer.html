@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fremorizer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Oswald:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Oswald:wght@400;500;700&family=Bungee&family=Fraunces:ital,wght@0,400;1,400;1,700&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
@@ -110,8 +110,8 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
   // Board colors — theme + board type aware
   const isMaple = boardType === 'maple';
   const isVintage = theme === 'vintage';
-  const accentColor = theme === 'metal' ? '#00c8ff' : theme === 'funk' ? '#40e878' : '#c89030';
-  const accentDim   = theme === 'metal' ? '#006888' : theme === 'funk' ? '#1a7838' : '#7a5820';
+  const accentColor = theme === 'metal' ? '#00c8ff' : theme === 'funk' ? '#ff40c0' : '#c89030';
+  const accentDim   = theme === 'metal' ? '#006888' : theme === 'funk' ? '#a02890' : '#7a5820';
 
   // Board wood
   const boardTop    = isVintage ? (isMaple ? '#c8a878' : '#3c2010')
@@ -125,9 +125,9 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
 
   // Inlays
   const inlayFill   = isVintage ? (isMaple ? 'rgba(60,40,20,0.35)'    : 'rgba(240,220,178,0.32)')
-                    : (isMaple  ? 'rgba(60,40,20,0.35)' : `rgba(${theme==='metal'?'0,200,255':'64,232,120'},0.18)`);
+                    : (isMaple  ? 'rgba(60,40,20,0.35)' : `rgba(${theme==='metal'?'0,200,255':'255,64,192'},0.18)`);
   const inlayStroke = isVintage ? (isMaple ? 'rgba(40,20,10,0.15)'    : 'rgba(240,220,178,0.12)')
-                    : (isMaple  ? 'rgba(40,20,10,0.15)' : `rgba(${theme==='metal'?'0,200,255':'64,232,120'},0.35)`);
+                    : (isMaple  ? 'rgba(40,20,10,0.15)' : `rgba(${theme==='metal'?'0,200,255':'255,64,192'},0.35)`);
 
   // Nut
   const nutTop      = isMaple ? '#f8f0e0' : (isVintage ? '#f0e0b0' : '#303438');
@@ -197,26 +197,33 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       ))}
 
       {/* Fret set highlight */}
-      {fretSet && (
+      {fretSet && (() => {
+        const isMetal = theme === 'metal';
+        const isFunk  = theme === 'funk';
+        const fillRgb   = isMetal ? '0,200,255' : isFunk ? '255,64,192' : '180,120,30';
+        const strokeRgb = isMetal ? '0,200,255' : isFunk ? '255,64,192' : '200,160,60';
+        const barRgb    = isMetal ? '0,200,255' : isFunk ? '200,255,32' : '200,160,60';
+        return (
         <>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={5*SH+SH*1.1}
-            fill="rgba(180,120,30,0.13)" rx="2"/>
+            fill={`rgba(${fillRgb},0.13)`} rx="2"/>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={5*SH+SH*1.1}
-            fill="none" stroke="rgba(200,160,60,0.55)" strokeWidth="1.5" rx="2"/>
+            fill="none" stroke={`rgba(${strokeRgb},0.55)`} strokeWidth="1.5" rx="2"/>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={3}
-            fill="rgba(200,160,60,0.6)" rx="1"/>
+            fill={`rgba(${barRgb},0.6)`} rx="1"/>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT + 5*SH + SH*0.55 - 3}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={3}
-            fill="rgba(200,160,60,0.6)" rx="1"/>
+            fill={`rgba(${barRgb},0.6)`} rx="1"/>
         </>
-      )}
+        );
+      })()}
 
       {/* Inlay dots */}
       {INLAY.map(f => f <= totalFrets && (
@@ -277,12 +284,24 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       {/* Markers */}
       {markers.map((m, i) => {
         const mcx = cx(m.f), mcy = cy(m.s);
+        const isMetal = theme === 'metal';
+        const isFunk  = theme === 'funk';
         const colors = {
-          question: ['#a87028', '#f0ddb8'],
-          correct:  ['#4a7830', '#b0e890'],
-          wrong:    ['#882018', '#f0a090'],
-          marked:   ['#a87028', '#f0ddb8'],
-          interval: ['#285870', '#90c8e8'],
+          question: isMetal ? ['#08384a', '#80e0ff']
+                  : isFunk  ? ['#3a0a30', '#ffb0e8']
+                  : ['#a87028', '#f0ddb8'],
+          correct:  isMetal ? ['#0a4838', '#80f0c0']
+                  : isFunk  ? ['#2a3a08', '#e8ff80']
+                  : ['#4a7830', '#b0e890'],
+          wrong:    isMetal ? ['#480818', '#ff90a0']
+                  : isFunk  ? ['#480818', '#ff90a0']
+                  : ['#882018', '#f0a090'],
+          marked:   isMetal ? ['#08384a', '#80e0ff']
+                  : isFunk  ? ['#3a0a30', '#ffb0e8']
+                  : ['#a87028', '#f0ddb8'],
+          interval: isMetal ? ['#082838', '#a0d8ff']
+                  : isFunk  ? ['#2a0a3a', '#c890ff']
+                  : ['#285870', '#90c8e8'],
         };
         const [bg, fg] = colors[m.type] || colors.question;
         const label = m.label ?? '?';
@@ -1372,9 +1391,21 @@ function ThemeBar({ tweaks, setTweaks }) {
   );
 }
 
-function TweaksPanel({ tweaks, setTweaks }) {
+function TweaksPanel({ tweaks, setTweaks, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    function onDocDown(e) {
+      if (ref.current && !ref.current.contains(e.target)) onClose?.();
+    }
+    document.addEventListener('mousedown', onDocDown);
+    document.addEventListener('touchstart', onDocDown);
+    return () => {
+      document.removeEventListener('mousedown', onDocDown);
+      document.removeEventListener('touchstart', onDocDown);
+    };
+  }, [onClose]);
   return (
-    <div className="tweaks-panel">
+    <div className="tweaks-panel" ref={ref}>
       <div className="tweaks-title">Tweaks</div>
       <div className="tweak-row">
         <div className="tweak-label">THEME</div>
@@ -1429,8 +1460,13 @@ function App() {
     document.documentElement.setAttribute('data-theme', tweaks.theme);
     document.body.style.backgroundColor =
       tweaks.theme === 'metal' ? '#06080a' :
-      tweaks.theme === 'funk'  ? '#04100a' : '';
+      tweaks.theme === 'funk'  ? '#0d0420' : '';
   }, [tweaks.theme]);
+
+  useEffect(() => {
+    if (mode) document.documentElement.setAttribute('data-in-game', '');
+    else document.documentElement.removeAttribute('data-in-game');
+  }, [mode]);
 
   useEffect(() => {
     if (mode) localStorage.setItem('frem_mode', mode);
@@ -1457,8 +1493,13 @@ function App() {
       {mode==='free' && <FreeLearn onBack={back} tweaks={tweaks}/>}
       {mode==='notes' && <NoteListGame onBack={back}/>}
       {mode==='stats' && <StatsView onBack={back}/>}
-      {tweaksOpen && <TweaksPanel tweaks={tweaks} setTweaks={setTweaks}/>}
-      {mode && <ThemeBar tweaks={tweaks} setTweaks={setTweaks}/>}
+      {tweaksOpen && <TweaksPanel tweaks={tweaks} setTweaks={setTweaks} onClose={() => setTweaksOpen(false)}/>}
+      {!tweaksOpen && (
+        <button className="tweaks-cta" onClick={() => setTweaksOpen(true)} aria-label="Open tweaks">
+          <span className="tweaks-cta-icon">⚙</span>
+          <span className="tweaks-cta-label">Tweak it</span>
+        </button>
+      )}
     </>
   );
 }

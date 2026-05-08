@@ -415,7 +415,7 @@ function shuffleArr(arr) {
 /* ═══════════════════════════════════════
    FRETBOARD SVG
 ═══════════════════════════════════════ */
-function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both', boardType='rosewood', theme='vintage' }) {
+function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both', boardType='rosewood', theme='vintage', freeLearn=false }) {
   const FW = 70, SH = 32, ML = 54, MT = 36, MB = 18;
   const W = ML + totalFrets * FW + 22;
   const H = MT + 5 * SH + MB;
@@ -575,18 +575,41 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
           fill={labelFill} fontSize="11" fontFamily="'DM Mono',monospace">{f}</text>
       ))}
 
-      {/* String labels */}
-      {STRINGS.map((n, s) => (
-        <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
-          fill={stringLabelColor} fontSize="13" fontWeight="600"
-          fontFamily="'DM Mono',monospace">{n}</text>
-      ))}
+      {/* String labels — in free-learn mode show clickable ✕ / revealed note */}
+      {STRINGS.map((n, s) => {
+        const openKey = `${s}-0`;
+        const isFreeLearning = freeLearn;
+        const openRevealed = showNotes[openKey];
+        if (isFreeLearning && !openRevealed) {
+          return (
+            <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
+              fill="#c04040" fontSize="15" fontWeight="700"
+              fontFamily="'DM Mono',monospace"
+              style={{cursor:'pointer'}}
+              onClick={() => onCellClick && onCellClick(s, 0)}>✕</text>
+          );
+        }
+        if (isFreeLearning && openRevealed) {
+          return (
+            <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
+              fill={noteTextColor} fontSize="11" fontWeight="600"
+              fontFamily="'DM Mono',monospace"
+              style={{cursor:'pointer'}}
+              onClick={() => onCellClick && onCellClick(s, 0)}>{showNote(noteAt(s,0), noteStyle)}</text>
+          );
+        }
+        return (
+          <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
+            fill={stringLabelColor} fontSize="13" fontWeight="600"
+            fontFamily="'DM Mono',monospace">{n}</text>
+        );
+      })}
 
-      {/* Revealed note labels (free mode) */}
-      {Object.entries(showNotes).map(([key, note]) => {
+      {/* Revealed note labels (free mode) — skip fret 0 (shown in string label) */}
+      {Object.entries(showNotes).filter(([key]) => !key.endsWith('-0')).map(([key, note]) => {
         const [s,f] = key.split('-').map(Number);
-        const r = f===0 ? 11 : 13;
-        const fs = f===0 ? 9 : (showNote(noteAt(s,f),noteStyle).includes('/') ? 8 : 11);
+        const r = 13;
+        const fs = showNote(noteAt(s,f),noteStyle).includes('/') ? 8 : 11;
         return (
           <g key={key}>
             <circle cx={cx(f)} cy={cy(s)} r={r} fill={noteCircleBg} stroke={noteCircleStroke} strokeWidth="1"/>
@@ -633,11 +656,11 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       })}
 
       {/* Selected cell highlight (free mode) */}
-      {selectedCell && !markerAt(selectedCell.s, selectedCell.f) && !showNotes[`${selectedCell.s}-${selectedCell.f}`] && (
+      {selectedCell && !markerAt(selectedCell.s, selectedCell.f) && (
         <rect
-          x={cx(selectedCell.f)-(selectedCell.f===0?14:FW/2-2)}
+          x={selectedCell.f===0 ? (freeLearn ? ML-18-12 : cx(0)-14) : cx(selectedCell.f)-FW/2+2}
           y={cy(selectedCell.s)-SH/2+2}
-          width={selectedCell.f===0 ? 28 : FW-4} height={SH-4}
+          width={selectedCell.f===0 ? 24 : FW-4} height={SH-4}
           fill="rgba(200,144,48,0.12)" stroke="rgba(200,144,48,0.5)"
           strokeWidth="1" rx="2"/>
       )}
@@ -1506,17 +1529,28 @@ function FreeLearn({ onBack, tweaks }) {
           selectedCell={sel}
           totalFrets={totalFrets}
           noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}
+          freeLearn={true}
         />
       </div>
 
-      {matchedChords.length > 0 && (
-        <div style={{textAlign:'center',fontFamily:'DM Mono',fontSize:'0.85rem',
-          color:'var(--gold,#c89030)',padding:'6px 0'}}>
-          {matchedChords.map((c,i) => (
-            <span key={i}>{i > 0 ? ' · ' : ''}{c.name}</span>
-          ))}
-        </div>
-      )}
+      <div style={{textAlign:'center',fontFamily:'DM Mono',fontSize:'0.85rem',
+        color: matchedChords.length > 0 ? 'var(--gold,#c89030)' : 'var(--text-dim,#888)',
+        padding:'6px 0'}}>
+        {matchedChords.length > 0
+          ? matchedChords.map((c,i) => {
+              const IV_SHORT = {'1':'root','2':'major 2nd','b3':'minor 3rd','3':'major 3rd','4':'perfect 4th','5':'perfect 5th','b7':'minor 7th','7':'major 7th','9':'9th','#9':'sharp 9th'};
+              const seen = new Set();
+              const parts = [];
+              for (const iv of IV_ORDER) {
+                const p = c.positions.find(p => p.iv === iv);
+                if (!p || seen.has(iv)) continue;
+                seen.add(iv);
+                parts.push(`${IV_SHORT[iv]}: ${showNote(noteAt(p.s, p.f), tweaks.noteStyle)}`);
+              }
+              return <div key={i}>{i > 0 && <hr style={{border:'none',borderTop:'1px solid var(--text-dim,#444)',margin:'4px 0'}}/>}<strong>{c.name}</strong> ({parts.join(', ')})</div>;
+            })
+          : 'no chord identified yet'}
+      </div>
 
       <div className="scale-row">
         <select className="root-select" value={scaleRoot} onChange={e=>setScaleRoot(e.target.value)}>

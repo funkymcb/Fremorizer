@@ -69,6 +69,21 @@ const CHORD_SHAPES = [
   { name:'A7',      positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:0,iv:'b7'},{s:1,f:2,iv:'3'},{s:0,f:0,iv:'5'}] },
   { name:'D7',      positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:1,iv:'b7'},{s:0,f:2,iv:'3'}] },
   { name:'G7',      positions:[{s:5,f:3,iv:'1'},{s:4,f:2,iv:'3'},{s:3,f:0,iv:'5'},{s:2,f:0,iv:'1'},{s:1,f:0,iv:'3'},{s:0,f:1,iv:'b7'}] },
+  // ── E-shape barre 7th chords ─────────────────────────────────────────────
+  { name:'F7',  positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:1,iv:'b7'},{s:2,f:2,iv:'3'},{s:1,f:1,iv:'5'},{s:0,f:1,iv:'1'}] },
+  { name:'F#7', positions:[{s:5,f:2,iv:'1'},{s:4,f:4,iv:'5'},{s:3,f:2,iv:'b7'},{s:2,f:3,iv:'3'},{s:1,f:2,iv:'5'},{s:0,f:2,iv:'1'}] },
+  { name:'G#7', positions:[{s:5,f:4,iv:'1'},{s:4,f:6,iv:'5'},{s:3,f:4,iv:'b7'},{s:2,f:5,iv:'3'},{s:1,f:4,iv:'5'},{s:0,f:4,iv:'1'}] },
+  { name:'A7',  positions:[{s:5,f:5,iv:'1'},{s:4,f:7,iv:'5'},{s:3,f:5,iv:'b7'},{s:2,f:6,iv:'3'},{s:1,f:5,iv:'5'},{s:0,f:5,iv:'1'}] },
+  { name:'Bb7', positions:[{s:5,f:6,iv:'1'},{s:4,f:8,iv:'5'},{s:3,f:6,iv:'b7'},{s:2,f:7,iv:'3'},{s:1,f:6,iv:'5'},{s:0,f:6,iv:'1'}] },
+  { name:'B7',  positions:[{s:5,f:7,iv:'1'},{s:4,f:9,iv:'5'},{s:3,f:7,iv:'b7'},{s:2,f:8,iv:'3'},{s:1,f:7,iv:'5'},{s:0,f:7,iv:'1'}] },
+  { name:'C7',  positions:[{s:5,f:8,iv:'1'},{s:4,f:10,iv:'5'},{s:3,f:8,iv:'b7'},{s:2,f:9,iv:'3'},{s:1,f:8,iv:'5'},{s:0,f:8,iv:'1'}] },
+  // ── A-shape barre 7th chords ─────────────────────────────────────────────
+  { name:'Bb7', positions:[{s:4,f:1,iv:'1'},{s:3,f:3,iv:'5'},{s:2,f:1,iv:'b7'},{s:1,f:3,iv:'3'},{s:0,f:1,iv:'5'}] },
+  { name:'B7',  positions:[{s:4,f:2,iv:'1'},{s:3,f:4,iv:'5'},{s:2,f:2,iv:'b7'},{s:1,f:4,iv:'3'},{s:0,f:2,iv:'5'}] },
+  { name:'C#7', positions:[{s:4,f:4,iv:'1'},{s:3,f:6,iv:'5'},{s:2,f:4,iv:'b7'},{s:1,f:6,iv:'3'},{s:0,f:4,iv:'5'}] },
+  { name:'Eb7', positions:[{s:4,f:6,iv:'1'},{s:3,f:8,iv:'5'},{s:2,f:6,iv:'b7'},{s:1,f:8,iv:'3'},{s:0,f:6,iv:'5'}] },
+  { name:'E7',  positions:[{s:4,f:7,iv:'1'},{s:3,f:9,iv:'5'},{s:2,f:7,iv:'b7'},{s:1,f:9,iv:'3'},{s:0,f:7,iv:'5'}] },
+  { name:'F7',  positions:[{s:4,f:8,iv:'1'},{s:3,f:10,iv:'5'},{s:2,f:8,iv:'b7'},{s:1,f:10,iv:'3'},{s:0,f:8,iv:'5'}] },
   // ── E-shape barre chords ──────────────────────────────────────────────────
   { name:'F major',  positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:3,iv:'1'},{s:2,f:2,iv:'3'},{s:1,f:1,iv:'5'},{s:0,f:1,iv:'1'}] },
   { name:'F# major', positions:[{s:5,f:2,iv:'1'},{s:4,f:4,iv:'5'},{s:3,f:4,iv:'1'},{s:2,f:3,iv:'3'},{s:1,f:2,iv:'5'},{s:0,f:2,iv:'1'}] },
@@ -121,6 +136,53 @@ const CHORD_SHAPES = [
   { name:'B major',  positions:[{s:5,f:7,iv:'1'},{s:4,f:6,iv:'3'},{s:3,f:4,iv:'5'},{s:2,f:4,iv:'1'},{s:1,f:4,iv:'3'},{s:0,f:7,iv:'1'}] },
   { name:'C major',  positions:[{s:5,f:8,iv:'1'},{s:4,f:7,iv:'3'},{s:3,f:5,iv:'5'},{s:2,f:5,iv:'1'},{s:1,f:5,iv:'3'},{s:0,f:8,iv:'1'}] },
   { name:'D major',  positions:[{s:5,f:10,iv:'1'},{s:4,f:9,iv:'3'},{s:3,f:7,iv:'5'},{s:2,f:7,iv:'1'},{s:1,f:7,iv:'3'},{s:0,f:10,iv:'1'}] },
+  // ── sus2 chords (medium) ─────────────────────────────────────────────────
+  { name:'Asus2',  positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:2,iv:'1'},{s:1,f:0,iv:'2'},{s:0,f:0,iv:'5'}] },
+  { name:'Dsus2',  positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:3,iv:'1'},{s:0,f:0,iv:'2'}] },
+  { name:'Esus2',  positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:4,iv:'2'},{s:2,f:4,iv:'5'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
+  { name:'Csus2',  positions:[{s:4,f:3,iv:'1'},{s:3,f:3,iv:'5'},{s:2,f:0,iv:'5'},{s:1,f:1,iv:'1'},{s:0,f:0,iv:'2'}] },
+  { name:'Gsus2',  positions:[{s:5,f:3,iv:'1'},{s:4,f:0,iv:'2'},{s:3,f:0,iv:'5'},{s:2,f:0,iv:'1'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
+  // E-shape sus2 barre
+  { name:'F#sus2', positions:[{s:5,f:2,iv:'1'},{s:4,f:4,iv:'5'},{s:3,f:6,iv:'2'},{s:2,f:6,iv:'5'},{s:1,f:2,iv:'5'},{s:0,f:2,iv:'1'}] },
+  { name:'Absus2', positions:[{s:5,f:4,iv:'1'},{s:4,f:6,iv:'5'},{s:3,f:8,iv:'2'},{s:2,f:8,iv:'5'},{s:1,f:4,iv:'5'},{s:0,f:4,iv:'1'}] },
+  { name:'Bbsus2', positions:[{s:5,f:6,iv:'1'},{s:4,f:8,iv:'5'},{s:3,f:10,iv:'2'},{s:2,f:10,iv:'5'},{s:1,f:6,iv:'5'},{s:0,f:6,iv:'1'}] },
+  // ── sus4 chords (medium) ─────────────────────────────────────────────────
+  { name:'Asus4',  positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:2,iv:'1'},{s:1,f:3,iv:'4'},{s:0,f:0,iv:'5'}] },
+  { name:'Dsus4',  positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:3,iv:'1'},{s:0,f:3,iv:'4'}] },
+  { name:'Esus4',  positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:2,iv:'1'},{s:2,f:2,iv:'4'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
+  // E-shape sus4 barre
+  { name:'Fsus4',  positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:3,iv:'1'},{s:2,f:3,iv:'4'},{s:1,f:1,iv:'5'},{s:0,f:1,iv:'1'}] },
+  { name:'Gsus4',  positions:[{s:5,f:3,iv:'1'},{s:4,f:5,iv:'5'},{s:3,f:5,iv:'1'},{s:2,f:5,iv:'4'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
+  { name:'Bbsus4', positions:[{s:5,f:6,iv:'1'},{s:4,f:8,iv:'5'},{s:3,f:8,iv:'1'},{s:2,f:8,iv:'4'},{s:1,f:6,iv:'5'},{s:0,f:6,iv:'1'}] },
+  // ── add9 chords (medium) ─────────────────────────────────────────────────
+  { name:'Cadd9',  positions:[{s:4,f:3,iv:'1'},{s:3,f:2,iv:'3'},{s:2,f:0,iv:'5'},{s:1,f:3,iv:'9'},{s:0,f:0,iv:'3'}] },
+  { name:'Gadd9',  positions:[{s:5,f:3,iv:'1'},{s:4,f:2,iv:'3'},{s:3,f:0,iv:'5'},{s:2,f:2,iv:'9'},{s:1,f:0,iv:'3'},{s:0,f:3,iv:'1'}] },
+  { name:'Eadd9',  positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:2,iv:'1'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:2,iv:'9'}] },
+  { name:'Dadd9',  positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:3,iv:'1'},{s:0,f:0,iv:'9'}] },  // open E = 9 of D
+  // ── maj7 chords (hard) ───────────────────────────────────────────────────
+  { name:'Cmaj7',  positions:[{s:4,f:3,iv:'1'},{s:3,f:2,iv:'3'},{s:2,f:0,iv:'5'},{s:1,f:0,iv:'7'},{s:0,f:0,iv:'3'}] },
+  { name:'Gmaj7',  positions:[{s:5,f:3,iv:'1'},{s:4,f:2,iv:'3'},{s:3,f:0,iv:'5'},{s:2,f:0,iv:'1'},{s:1,f:0,iv:'3'},{s:0,f:2,iv:'7'}] },
+  { name:'Dmaj7',  positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:2,iv:'7'},{s:0,f:2,iv:'3'}] },
+  { name:'Amaj7',  positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:1,iv:'7'},{s:1,f:2,iv:'3'},{s:0,f:0,iv:'5'}] },
+  { name:'Emaj7',  positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:1,iv:'7'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
+  { name:'Fmaj7',  positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:2,iv:'7'},{s:2,f:2,iv:'3'},{s:1,f:1,iv:'5'},{s:0,f:0,iv:'7'}] },
+  // ── m7 chords (hard) ─────────────────────────────────────────────────────
+  { name:'Am7',  positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:0,iv:'b7'},{s:1,f:1,iv:'b3'},{s:0,f:0,iv:'5'}] },
+  { name:'Em7',  positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:0,iv:'b7'},{s:2,f:0,iv:'b3'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
+  { name:'Dm7',  positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:1,iv:'b7'},{s:0,f:1,iv:'b3'}] },
+  { name:'Bm7',  positions:[{s:4,f:2,iv:'1'},{s:3,f:0,iv:'b7'},{s:2,f:2,iv:'5'},{s:1,f:0,iv:'b3'},{s:0,f:2,iv:'5'}] },  // partial barre
+  // E-shape m7 barre
+  { name:'F#m7', positions:[{s:5,f:2,iv:'1'},{s:4,f:4,iv:'5'},{s:3,f:2,iv:'b7'},{s:2,f:2,iv:'b3'},{s:1,f:2,iv:'5'},{s:0,f:2,iv:'1'}] },
+  { name:'Gm7',  positions:[{s:5,f:3,iv:'1'},{s:4,f:5,iv:'5'},{s:3,f:3,iv:'b7'},{s:2,f:3,iv:'b3'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
+  { name:'Bbm7', positions:[{s:5,f:6,iv:'1'},{s:4,f:8,iv:'5'},{s:3,f:6,iv:'b7'},{s:2,f:6,iv:'b3'},{s:1,f:6,iv:'5'},{s:0,f:6,iv:'1'}] },
+  // ── 9th chords (hard) ────────────────────────────────────────────────────
+  { name:'A9',  positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:0,iv:'b7'},{s:1,f:2,iv:'3'},{s:0,f:0,iv:'9'}] },  // open A9
+  { name:'E9',  positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:0,iv:'b7'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:2,iv:'9'}] },
+  { name:'G9',  positions:[{s:5,f:3,iv:'1'},{s:4,f:2,iv:'3'},{s:3,f:3,iv:'b7'},{s:2,f:2,iv:'9'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
+  { name:'C9',  positions:[{s:4,f:3,iv:'1'},{s:3,f:2,iv:'3'},{s:2,f:3,iv:'b7'},{s:1,f:3,iv:'9'},{s:0,f:3,iv:'5'}] },
+  // ── 7#9 chords (hard) ────────────────────────────────────────────────────
+  { name:'E7#9', positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:0,iv:'b7'},{s:2,f:1,iv:'3'},{s:1,f:0,iv:'5'},{s:0,f:3,iv:'#9'}] },  // Hendrix chord
+  { name:'A7#9', positions:[{s:4,f:0,iv:'1'},{s:3,f:2,iv:'5'},{s:2,f:0,iv:'b7'},{s:1,f:2,iv:'3'},{s:0,f:3,iv:'#9'}] },
 ];
 
 const CHORD_GOAL = 20;
@@ -413,9 +475,35 @@ function NoteKeyboard({ onNote, disabled, noteStyle='both' }) {
   );
 }
 
-const CHORD_QUALITIES = ['major', 'minor', '7'];
+const CHORD_QUALITIES_EASY   = ['major', 'minor', '7'];
+const CHORD_QUALITIES_MEDIUM = ['major', 'minor', '7', 'sus2', 'sus4', 'add9'];
+const CHORD_QUALITIES_HARD   = ['major', 'minor', '7', 'sus2', 'sus4', 'add9', 'maj7', 'm7', '9', '7#9'];
 
-function ChordKeyboard({ onChord, disabled, noteStyle='both' }) {
+function getChordDifficulty(name) {
+  const n = name.toLowerCase();
+  if (/7#9$/.test(n))   return 'hard';
+  if (/maj7$/.test(n))  return 'hard';
+  if (/m7$/.test(n))    return 'hard';
+  if (/(?<!add)9$/.test(n))  return 'hard';
+  if (/sus[24]$/.test(n))    return 'medium';
+  if (/add9$/.test(n))       return 'medium';
+  return 'easy';
+}
+
+const DIFFICULTY_RANK = { easy: 0, medium: 1, hard: 2 };
+
+function chordsForDifficulty(diff) {
+  const rank = DIFFICULTY_RANK[diff] ?? 0;
+  return CHORD_SHAPES.filter(c => DIFFICULTY_RANK[getChordDifficulty(c.name)] <= rank);
+}
+
+function qualitiesForDifficulty(diff) {
+  if (diff === 'hard')   return CHORD_QUALITIES_HARD;
+  if (diff === 'medium') return CHORD_QUALITIES_MEDIUM;
+  return CHORD_QUALITIES_EASY;
+}
+
+function ChordKeyboard({ onChord, disabled, noteStyle='both', difficulty='easy' }) {
   const [root, setRoot] = useState(null);
 
   function pickRoot(n) {
@@ -424,10 +512,14 @@ function ChordKeyboard({ onChord, disabled, noteStyle='both' }) {
 
   function pickQuality(q) {
     if (!root) return;
-    const name = q === '7' ? root + '7' : root + ' ' + q;
+    // Qualities that append directly without space: 7, sus2, sus4, add9, maj7, m7, 9, 7#9
+    const spacedQualities = ['major', 'minor'];
+    const name = spacedQualities.includes(q) ? root + ' ' + q : root + q;
     onChord(name);
     setRoot(null);
   }
+
+  const qualities = qualitiesForDifficulty(difficulty);
 
   useEffect(() => { if (disabled) setRoot(null); }, [disabled]);
 
@@ -438,7 +530,7 @@ function ChordKeyboard({ onChord, disabled, noteStyle='both' }) {
           color:'var(--text-muted)',marginBottom:4}}>
           Root: <span style={{color:'var(--gold)'}}>{showNote(root, noteStyle)}</span>
         </div>
-        {CHORD_QUALITIES.map(q => (
+        {qualities.map(q => (
           <button key={q} className="note-key" style={{minWidth:70}} disabled={disabled}
             onClick={() => pickQuality(q)}>{q}</button>
         ))}
@@ -803,13 +895,18 @@ function FindNotesGame({ onBack, tweaks }) {
 }
 
 // ── interval helpers ──────────────────────────────────────────────────────────
-const IV_ORDER = ['1','b3','3','5','b7'];
+const IV_ORDER = ['1','2','b3','3','4','5','b7','7','9','#9'];
 const IV_LABEL = {
   '1':  'root note (1)',
+  '2':  'major second (2)',
   'b3': 'minor third (b3)',
   '3':  'major third (3)',
+  '4':  'perfect fourth (4)',
   '5':  'perfect fifth (5)',
   'b7': 'minor seventh (b7)',
+  '7':  'major seventh (7)',
+  '9':  'ninth (9)',
+  '#9': 'sharp nine (#9)',
 };
 
 function buildChordIntervals(chord) {
@@ -833,16 +930,23 @@ const CHORD_ENHARMONIC = {
 };
 
 function expandChordInput(s) {
-  return s.replace(/maj$/, ' major').replace(/min$/, ' minor').replace(/m$/, ' minor')
+  return s.replace(/maj$/, ' major').replace(/min$/, ' minor')
+    .replace(/(?<!aj)(?<!di)m(?!aj|7|9|in)/, ' minor')
     .trim().replace(/\s+/g,' ');
 }
 
+function normalizeChordName(s) {
+  return s.trim().toLowerCase().replace(/\s+/g,' ');
+}
+
 function matchesChordName(input, cname) {
-  const exp = expandChordInput(input);
-  if (input === cname || exp === cname) return true;
-  if (cname.endsWith(' major')) {
-    const root = cname.replace(' major', '');
-    if (input === root || exp === root) return true;
+  const ni = normalizeChordName(input);
+  const nc = normalizeChordName(cname);
+  const exp = normalizeChordName(expandChordInput(input));
+  if (ni === nc || exp === nc) return true;
+  if (nc.endsWith(' major')) {
+    const root = nc.replace(' major', '');
+    if (ni === root || exp === root) return true;
   }
   return false;
 }
@@ -860,7 +964,8 @@ function chordNameCorrect(norm, name) {
    GAME MODE 3: CHORD IDENTIFICATION
 ═══════════════════════════════════════ */
 function ChordGame({ onBack, tweaks }) {
-  const [chords] = useState(() => shuffleArr(CHORD_SHAPES));
+  const diff = tweaks.chordDifficulty || 'easy';
+  const [chords] = useState(() => shuffleArr(chordsForDifficulty(diff)));
   const [ci, setCi] = useState(0);
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState(null);
@@ -999,7 +1104,7 @@ function ChordGame({ onBack, tweaks }) {
         {phase === 'naming' ? (<>
           <div className="prompt-text">Which chord is this?</div>
           {isMobile ? (
-            <ChordKeyboard onChord={name => !feedback && handleNaming(name)} disabled={!!feedback} noteStyle={tweaks.noteStyle}/>
+            <ChordKeyboard onChord={name => !feedback && handleNaming(name)} disabled={!!feedback} noteStyle={tweaks.noteStyle} difficulty={diff}/>
           ) : (
             <div className="note-input-row">
               <input ref={inputRef}
@@ -1398,7 +1503,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "frets": 12,
   "noteStyle": "sharp",
   "theme": "vintage",
-  "board": "rosewood"
+  "board": "rosewood",
+  "chordDifficulty": "easy"
 }/*EDITMODE-END*/;
 
 function ThemeBar({ tweaks, setTweaks }) {
@@ -1478,6 +1584,22 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
               onClick={() => setTweaks(t=>({...t,noteStyle:s}))}>{s}</button>
           ))}
         </div>
+      </div>
+      <div className="tweak-row">
+        <div className="tweak-label">CHORD DIFFICULTY</div>
+        <div className="tweak-options">
+          {['easy','medium','hard'].map(d => (
+            <button key={d} className={`tweak-opt ${tweaks.chordDifficulty===d?'active':''}`}
+              onClick={() => setTweaks(t=>({...t,chordDifficulty:d}))}>{d}</button>
+          ))}
+        </div>
+      </div>
+      <div style={{padding:'8px 12px',fontSize:'0.7rem',fontFamily:'DM Mono',color:'var(--text-muted)',
+        lineHeight:1.5,borderTop:'1px solid var(--border-subtle,rgba(128,128,128,0.15))'}}>
+        <div style={{marginBottom:4,fontWeight:500,color:'var(--gold,#c89030)'}}>Chord difficulty info</div>
+        <div><b>Easy</b> — major, minor, dominant 7th</div>
+        <div><b>Medium</b> — + sus2, sus4, add9</div>
+        <div><b>Hard</b> — + maj7, m7, 9th, 7#9</div>
       </div>
     </div>
   );

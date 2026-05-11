@@ -375,6 +375,19 @@ const CHORD_SHAPES = [
   { name:'A9', positions:[{s:5,f:5,iv:'1'},{s:4,f:7,iv:'5'},{s:3,f:5,iv:'b7'},{s:2,f:6,iv:'3'},{s:1,f:5,iv:'5'},{s:0,f:7,iv:'9'}] },
   { name:'Bb9', positions:[{s:5,f:6,iv:'1'},{s:4,f:8,iv:'5'},{s:3,f:6,iv:'b7'},{s:2,f:7,iv:'3'},{s:1,f:6,iv:'5'},{s:0,f:8,iv:'9'}] },
   { name:'B9', positions:[{s:5,f:7,iv:'1'},{s:4,f:9,iv:'5'},{s:3,f:7,iv:'b7'},{s:2,f:8,iv:'3'},{s:1,f:7,iv:'5'},{s:0,f:9,iv:'9'}] },
+  // A-shape
+  { name:'Bb9', positions:[{s:4,f:1,iv:'1'},{s:3,f:0,iv:'3'},{s:2,f:1,iv:'b7'},{s:1,f:1,iv:'9'},{s:0,f:1,iv:'5'}] },
+  { name:'B9', positions:[{s:4,f:2,iv:'1'},{s:3,f:1,iv:'3'},{s:2,f:2,iv:'b7'},{s:1,f:2,iv:'9'},{s:0,f:2,iv:'5'}] },
+  { name:'C9', positions:[{s:4,f:3,iv:'1'},{s:3,f:2,iv:'3'},{s:2,f:3,iv:'b7'},{s:1,f:3,iv:'9'},{s:0,f:3,iv:'5'}] },
+  { name:'C#9', positions:[{s:4,f:4,iv:'1'},{s:3,f:3,iv:'3'},{s:2,f:4,iv:'b7'},{s:1,f:4,iv:'9'},{s:0,f:4,iv:'5'}] },
+  { name:'D9', positions:[{s:4,f:5,iv:'1'},{s:3,f:4,iv:'3'},{s:2,f:5,iv:'b7'},{s:1,f:5,iv:'9'},{s:0,f:5,iv:'5'}] },
+  { name:'Eb9', positions:[{s:4,f:6,iv:'1'},{s:3,f:5,iv:'3'},{s:2,f:6,iv:'b7'},{s:1,f:6,iv:'9'},{s:0,f:6,iv:'5'}] },
+  { name:'E9', positions:[{s:4,f:7,iv:'1'},{s:3,f:6,iv:'3'},{s:2,f:7,iv:'b7'},{s:1,f:7,iv:'9'},{s:0,f:7,iv:'5'}] },
+  { name:'F9', positions:[{s:4,f:8,iv:'1'},{s:3,f:7,iv:'3'},{s:2,f:8,iv:'b7'},{s:1,f:8,iv:'9'},{s:0,f:8,iv:'5'}] },
+  { name:'F#9', positions:[{s:4,f:9,iv:'1'},{s:3,f:8,iv:'3'},{s:2,f:9,iv:'b7'},{s:1,f:9,iv:'9'},{s:0,f:9,iv:'5'}] },
+  { name:'G9', positions:[{s:4,f:10,iv:'1'},{s:3,f:9,iv:'3'},{s:2,f:10,iv:'b7'},{s:1,f:10,iv:'9'},{s:0,f:10,iv:'5'}] },
+  { name:'Ab9', positions:[{s:4,f:11,iv:'1'},{s:3,f:10,iv:'3'},{s:2,f:11,iv:'b7'},{s:1,f:11,iv:'9'},{s:0,f:11,iv:'5'}] },
+  { name:'A9', positions:[{s:4,f:12,iv:'1'},{s:3,f:11,iv:'3'},{s:2,f:12,iv:'b7'},{s:1,f:12,iv:'9'},{s:0,f:12,iv:'5'}] },
   // ── 7#9 ─────────────────────────────────────────────────────────
   // E-shape
   { name:'C7#9', positions:[{s:5,f:8,iv:'1'},{s:4,f:10,iv:'5'},{s:3,f:8,iv:'b7'},{s:2,f:9,iv:'3'},{s:1,f:8,iv:'5'},{s:0,f:11,iv:'#9'}] },
@@ -585,8 +598,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
             <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
               fill="#c04040" fontSize="15" fontWeight="700"
               fontFamily="'DM Mono',monospace"
-              style={{cursor:'pointer'}}
-              onClick={() => onCellClick && onCellClick(s, 0)}>✕</text>
+              style={{pointerEvents:'none'}}>✕</text>
           );
         }
         if (isFreeLearning && openRevealed) {
@@ -594,8 +606,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
             <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
               fill={noteTextColor} fontSize="11" fontWeight="600"
               fontFamily="'DM Mono',monospace"
-              style={{cursor:'pointer'}}
-              onClick={() => onCellClick && onCellClick(s, 0)}>{showNote(noteAt(s,0), noteStyle)}</text>
+              style={{pointerEvents:'none'}}>{showNote(noteAt(s,0), noteStyle)}</text>
           );
         }
         return (
@@ -669,10 +680,13 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       {interactive && STRINGS.map((_,s) =>
         Array.from({length:totalFrets+1},(_,f)=>f).map(f => {
           const inRange = !fretSet || (f===0 || (f>=fretSet[0] && f<=fretSet[1]));
+          const isFret0 = f === 0;
+          const x = isFret0 ? (freeLearn ? ML-18-14 : cx(0)-14) : cx(f)-FW/2+1;
+          const width = isFret0 ? (freeLearn ? 28 : 28) : FW-2;
           return (
             <rect key={`${s}-${f}`}
-              x={cx(f)-(f===0?14:FW/2-1)} y={cy(s)-SH/2}
-              width={f===0 ? 28 : FW-2} height={SH}
+              x={x} y={cy(s)-SH/2}
+              width={width} height={SH}
               fill="transparent"
               style={{cursor: inRange?'crosshair':'default'}}
               onClick={() => inRange && onCellClick && onCellClick(s,f)}/>
@@ -1576,7 +1590,7 @@ function FreeLearn({ onBack, tweaks }) {
 /* ═══════════════════════════════════════
    GAME MODE 5: NOTE LIST
 ═══════════════════════════════════════ */
-function NoteListGame({ onBack }) {
+function NoteListGame({ onBack, tweaks }) {
   const [notes, setNotes] = useState(() => shuffleArr(CHROMATIC));
   const [key, setKey] = useState(0);
 
@@ -1602,11 +1616,11 @@ function NoteListGame({ onBack }) {
         <div className="note-list-title">Chromatic Scale</div>
         <div className="note-list-items">
           {notes.map((n) => (
-            <div key={n} className="note-list-item">{showNote(n)}</div>
+            <div key={n} className="note-list-item">{showNote(n, tweaks?.noteStyle)}</div>
           ))}
         </div>
         <div className="note-list-hint" style={{marginTop:24}}>
-          <span>tap</span> / <span>n</span>: shuffle &nbsp; <span>Esc</span>: back
+          <span>space</span> / <span>enter</span> / <span>n</span>: shuffle &nbsp; <span>Esc</span>: back
         </div>
       </div>
     </div>
@@ -1812,7 +1826,7 @@ function Menu({ onSelect }) {
 ═══════════════════════════════════════ */
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "frets": 12,
-  "noteStyle": "sharp",
+  "noteStyle": "both",
   "theme": "vintage",
   "board": "rosewood",
   "chordDifficulty": "easy"
@@ -1970,7 +1984,7 @@ function App() {
       {mode==='find' && <FindNotesGame onBack={back} tweaks={tweaks}/>}
       {mode==='chord' && <ChordGame onBack={back} tweaks={tweaks}/>}
       {mode==='free' && <FreeLearn onBack={back} tweaks={tweaks}/>}
-      {mode==='notes' && <NoteListGame onBack={back}/>}
+      {mode==='notes' && <NoteListGame onBack={back} tweaks={tweaks}/>}
       {mode==='stats' && <StatsView onBack={back}/>}
       {tweaksOpen && <TweaksPanel tweaks={tweaks} setTweaks={setTweaks} onClose={() => setTweaksOpen(false)}/>}
       {!tweaksOpen && (

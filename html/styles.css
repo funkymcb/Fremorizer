@@ -288,7 +288,7 @@
 [data-theme="metal"] .menu-num { color: var(--gold-dim); }
 [data-theme="metal"] .menu-item:hover, [data-theme="metal"] .menu-item.active { border-color: rgba(0,200,255,0.4); background: rgba(0,200,255,0.06); }
 [data-theme="metal"] .menu-item.active { border-color: rgba(0,200,255,0.7); }
-[data-theme="metal"] .prompt-text { font-family: 'Oswald', sans-serif; font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; font-size: 1rem; color: var(--gold); text-shadow: 0 0 12px rgba(0,200,255,0.4); }
+[data-theme="metal"] .prompt-text { font-family: 'Oswald', sans-serif; font-style: normal; letter-spacing: 0.1em; font-size: 1rem; color: var(--gold); text-shadow: 0 0 12px rgba(0,200,255,0.4); }
 [data-theme="metal"] .game-title { color: var(--gold-dim); }
 [data-theme="metal"] .progress-fill {
   background: linear-gradient(90deg, #006888, #00c8ff 70%, #b8f0ff);

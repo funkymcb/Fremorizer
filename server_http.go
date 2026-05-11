@@ -20,6 +20,9 @@ var htmlPage []byte
 //go:embed html/styles.css
 var cssPage []byte
 
+//go:embed html/favicon.ico
+var faviconBytes []byte
+
 func serveHTTP(domain, addr string) {
 	if addr != "" {
 		serveHTTPProxy(addr)
@@ -144,6 +147,12 @@ func pageHandler() http.Handler {
 		h.Set("Cache-Control", "public, max-age=86400")
 		w.Write(cssPage)
 	})
+	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Type", "image/x-icon")
+		h.Set("Cache-Control", "public, max-age=604800")
+		w.Write(faviconBytes)
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
@@ -158,7 +167,7 @@ func pageHandler() http.Handler {
 				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
 				"font-src https://fonts.gstatic.com; "+
 				"connect-src 'none'; "+
-				"img-src 'none'; "+
+				"img-src 'self'; "+
 				"frame-ancestors 'none';")
 		h.Set("Content-Type", "text/html; charset=utf-8")
 		w.Write(htmlPage)

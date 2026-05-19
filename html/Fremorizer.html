@@ -1676,8 +1676,10 @@ function ProgressGraph({ mode, stats }) {
   const points = data.map((d, i) => ({
     x: PX + (i / (data.length - 1)) * (W - 2*PX),
     y: PY + (1 - d.avgPerItem / maxY) * (H - 2*PY),
+    avg: d.avgPerItem,
   }));
   const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
+  const [hover, setHover] = useState(null);
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{width:'100%',maxWidth:W}}>
       {[0.25,0.5,0.75].map(t => (
@@ -1691,8 +1693,32 @@ function ProgressGraph({ mode, stats }) {
       <polyline points={polyline} fill="none" stroke="var(--gold)" strokeWidth="1.5"
         strokeLinejoin="round" strokeLinecap="round"/>
       {points.map((p,i) => (
-        <circle key={i} cx={p.x} cy={p.y} r={2.5} fill="var(--gold)"/>
+        <g key={i}>
+          <circle cx={p.x} cy={p.y} r={hover===i?4:2.5} fill="var(--gold)"/>
+          <circle cx={p.x} cy={p.y} r={10} fill="transparent"
+            style={{cursor:'pointer'}}
+            onMouseEnter={() => setHover(i)}
+            onMouseLeave={() => setHover(h => h===i ? null : h)}>
+            <title>{`${p.avg.toFixed(2)}s avg/item`}</title>
+          </circle>
+        </g>
       ))}
+      {hover !== null && (() => {
+        const p = points[hover];
+        const label = `${p.avg.toFixed(2)}s`;
+        const tw = label.length * 6 + 12;
+        const above = p.y - 14 > PY;
+        const tx = Math.min(Math.max(p.x - tw/2, 2), W - tw - 2);
+        const ty = above ? p.y - 22 : p.y + 8;
+        return (
+          <g style={{pointerEvents:'none'}}>
+            <rect x={tx} y={ty} width={tw} height={16} rx="3"
+              fill="var(--bg,#1a1a1a)" stroke="var(--gold)" strokeWidth="0.8" opacity="0.95"/>
+            <text x={tx + tw/2} y={ty + 11} textAnchor="middle"
+              fontSize="10" fontFamily="DM Mono" fill="var(--gold)">{label}</text>
+          </g>
+        );
+      })()}
     </svg>
   );
 }

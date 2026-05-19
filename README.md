@@ -793,5 +793,5 @@ Or spawn an http server:<br>
 ## TODOs
 
 - html
-    - [ ] add option for bass
-    - [ ] 
+    - [x] add option for bass
+    - [x] hover over time line in stats, show actual time

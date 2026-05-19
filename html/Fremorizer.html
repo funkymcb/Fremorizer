@@ -15,7 +15,7 @@
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 /* ═══════════════════════════════════════
    MUSIC THEORY
@@ -1514,7 +1514,7 @@ function FreeLearn({ onBack, tweaks }) {
   }, [sel, revealed, totalFrets, nStrings]);
 
   // Match revealed notes against chord shapes (guitar-only; shapes are 6-string CAGED)
-  const matchedChords = (() => {
+  const matchedChords = useMemo(() => {
     if (instrument !== 'guitar') return [];
     const keys = Object.keys(revealed);
     if (keys.length < 3) return [];
@@ -1524,10 +1524,9 @@ function FreeLearn({ onBack, tweaks }) {
     const seen = new Set();
     for (const chord of CHORD_SHAPES) {
       const posKeys = chord.positions.map(p => `${p.s}-${p.f}`);
-      // every chord position must be revealed
       if (!posKeys.every(k => revSet.has(k))) continue;
       const chordSet = new Set(posKeys);
-      // detect barre fret: the lowest fret that appears on 2+ strings (skip fret 0)
+      // barre fret = lowest fret appearing on 2+ strings (skip fret 0)
       const fretCounts = {};
       for (const p of chord.positions) { if (p.f > 0) fretCounts[p.f] = (fretCounts[p.f]||0)+1; }
       const barreFret = Object.entries(fretCounts)
@@ -1537,7 +1536,6 @@ function FreeLearn({ onBack, tweaks }) {
       const extraOk = revPositions.every(rp => {
         const k = `${rp.s}-${rp.f}`;
         if (chordSet.has(k)) return true;
-        // extra note allowed only at the barre fret (not fret 0)
         return barreFret > 0 && rp.f === barreFret;
       });
       if (!extraOk) continue;
@@ -1547,7 +1545,7 @@ function FreeLearn({ onBack, tweaks }) {
       }
     }
     return matches;
-  })();
+  }, [revealed, instrument]);
 
   // Build scale markers
   const scaleMarkers = [];
@@ -1894,6 +1892,15 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "instrument": "guitar"
 }/*EDITMODE-END*/;
 
+const TWEAKS_KEY = 'frem_tweaks';
+
+function loadTweaks() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TWEAKS_KEY));
+    return saved && typeof saved === 'object' ? { ...TWEAK_DEFAULTS, ...saved } : TWEAK_DEFAULTS;
+  } catch { return TWEAK_DEFAULTS; }
+}
+
 function ThemeBar({ tweaks, setTweaks }) {
   return (
     <div className="theme-bar">
@@ -2017,7 +2024,11 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
 function App() {
   const [mode, setMode] = useState(() => localStorage.getItem('frem_mode') || null);
   const [tweaksOpen, setTweaksOpen] = useState(false);
-  const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS);
+  const [tweaks, setTweaks] = useState(loadTweaks);
+
+  useEffect(() => {
+    localStorage.setItem(TWEAKS_KEY, JSON.stringify(tweaks));
+  }, [tweaks]);
 
   // Apply theme + board to <html>
   useEffect(() => {

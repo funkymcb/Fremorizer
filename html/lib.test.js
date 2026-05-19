@@ -1,0 +1,279 @@
+// Run: `node --test html/lib.test.js`
+// Focus: chord-name matching + the music-theory helpers it depends on.
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+
+const {
+  noteAt, matchNote, scaleNotes, stringsFor, showNote,
+  CHROMATIC, CHORD_SHAPES,
+  normalizeChordName, expandChordInput, matchesChordName, chordNameCorrect,
+  getChordDifficulty, isBasicBarreChord, chordsForDifficulty, qualitiesForDifficulty,
+  buildChordIntervals,
+} = require('./lib.js');
+
+/* ────────────────────────────────────────────────────────────────
+   Music theory primitives — anchor tests for the tuning code.
+   ──────────────────────────────────────────────────────────────── */
+
+test('noteAt: guitar standard tuning (high E to low E, top to bottom)', () => {
+  // Open strings on a 6-string guitar.
+  assert.equal(noteAt(0, 0, 'guitar'), 'E'); // high E
+  assert.equal(noteAt(1, 0, 'guitar'), 'B');
+  assert.equal(noteAt(2, 0, 'guitar'), 'G');
+  assert.equal(noteAt(3, 0, 'guitar'), 'D');
+  assert.equal(noteAt(4, 0, 'guitar'), 'A');
+  assert.equal(noteAt(5, 0, 'guitar'), 'E'); // low E
+});
+
+test('noteAt: bass standard tuning is G/D/A/E (top to bottom)', () => {
+  assert.equal(noteAt(0, 0, 'bass'), 'G');
+  assert.equal(noteAt(1, 0, 'bass'), 'D');
+  assert.equal(noteAt(2, 0, 'bass'), 'A');
+  assert.equal(noteAt(3, 0, 'bass'), 'E');
+});
+
+test('noteAt: fret math wraps the chromatic scale', () => {
+  // Low E + 12 frets = E one octave up.
+  assert.equal(noteAt(5, 12, 'guitar'), 'E');
+  // A string + 3 frets = C.
+  assert.equal(noteAt(4, 3, 'guitar'), 'C');
+  // High E + 5 frets = A.
+  assert.equal(noteAt(0, 5, 'guitar'), 'A');
+});
+
+test('noteAt: defaults to guitar when instrument is omitted or unknown', () => {
+  assert.equal(noteAt(5, 0), 'E');
+  assert.equal(noteAt(5, 0, 'banjo'), 'E');
+});
+
+test('stringsFor: unknown instruments fall back to guitar', () => {
+  assert.deepEqual(stringsFor('ukulele'), stringsFor('guitar'));
+});
+
+test('matchNote: accepts sharps, flats, and unicode flat', () => {
+  assert.ok(matchNote('C#', 'C#'));
+  assert.ok(matchNote('Db', 'C#'));
+  assert.ok(matchNote('db', 'C#'));
+  assert.ok(matchNote('D♭', 'C#'));
+  assert.ok(matchNote(' c#  ', 'C#'));
+  assert.ok(!matchNote('D', 'C#'));
+});
+
+test('scaleNotes: major scale from C is the natural notes', () => {
+  assert.deepEqual(
+    scaleNotes('C', [0,2,4,5,7,9,11]),
+    ['C','D','E','F','G','A','B'],
+  );
+});
+
+test('showNote: respects flat/sharp/both styles', () => {
+  assert.equal(showNote('C#', 'sharp'), 'C#');
+  assert.equal(showNote('C#', 'flat'),  'Db');
+  assert.equal(showNote('C#', 'both'),  'C#/Db');
+  assert.equal(showNote('C',  'flat'),  'C');
+});
+
+/* ────────────────────────────────────────────────────────────────
+   Chord-name matching — the main reason this lib exists.
+   normalizeChordName / expandChordInput / matchesChordName /
+   chordNameCorrect form a pipeline; test each layer plus the end-
+   to-end behaviour the game relies on.
+   ──────────────────────────────────────────────────────────────── */
+
+test('normalizeChordName: lowercases, trims, strips parens, collapses whitespace', () => {
+  assert.equal(normalizeChordName('  C Major  '), 'c major');
+  assert.equal(normalizeChordName('A (minor)'),    'a minor');
+  assert.equal(normalizeChordName('F#   m7'),      'f# m7');
+});
+
+test('expandChordInput: maj/min suffixes expand to full words', () => {
+  assert.equal(expandChordInput('Cmaj'), 'C major');
+  assert.equal(expandChordInput('Amin'), 'A minor');
+});
+
+test('expandChordInput: bare lowercase m expands to minor', () => {
+  // Cm → C minor
+  assert.equal(expandChordInput('Cm'), 'C minor');
+  // F#m → F# minor
+  assert.equal(expandChordInput('F#m'), 'F# minor');
+});
+
+test('expandChordInput: does NOT expand m inside maj, m7, or minor', () => {
+  // Cmaj7 must NOT pick up the inner m as "minor".
+  assert.equal(expandChordInput('Cmaj7'), 'Cmaj7');
+  // Cm7 keeps the m7 token intact.
+  assert.equal(expandChordInput('Cm7'), 'Cm7');
+  // Already-expanded names pass through.
+  assert.equal(expandChordInput('C minor'), 'C minor');
+});
+
+test('matchesChordName: exact match after normalization', () => {
+  assert.ok(matchesChordName('C major', 'C major'));
+  assert.ok(matchesChordName(' c MAJOR ', 'C major'));
+});
+
+test('matchesChordName: short forms expand to canonical names', () => {
+  assert.ok(matchesChordName('Cmaj', 'C major'));
+  assert.ok(matchesChordName('cm',   'C minor'));
+  assert.ok(matchesChordName('Amin', 'A minor'));
+});
+
+test('matchesChordName: bare root counts as major', () => {
+  // The game accepts "C" as shorthand for "C major" — this is the rule
+  // that lets players type just the root for major chords.
+  assert.ok(matchesChordName('C',  'C major'));
+  assert.ok(matchesChordName('f#', 'F# major'));
+  // Bare root should NOT match a minor chord.
+  assert.ok(!matchesChordName('C', 'C minor'));
+});
+
+test('matchesChordName: wrong chord quality fails', () => {
+  assert.ok(!matchesChordName('C major', 'C minor'));
+  assert.ok(!matchesChordName('Cm',      'C major'));
+});
+
+test('chordNameCorrect: accepts enharmonic equivalents', () => {
+  // Game lowercases the canonical name before calling chordNameCorrect,
+  // matching the contract in ChordGame.handleNaming.
+  assert.ok(chordNameCorrect('db major', 'c# major'));
+  assert.ok(chordNameCorrect('c# major', 'db major'));
+  assert.ok(chordNameCorrect('eb minor', 'd# minor'));
+  assert.ok(chordNameCorrect('bb',       'a# major'));
+});
+
+test('chordNameCorrect: enharmonic mapping also works for suffixed chords', () => {
+  assert.ok(chordNameCorrect('dbm7',   'c#m7'));
+  assert.ok(chordNameCorrect('ebmaj7', 'd#maj7'));
+});
+
+test('chordNameCorrect: rejects unrelated chord names', () => {
+  assert.ok(!chordNameCorrect('d major', 'c major'));
+  assert.ok(!chordNameCorrect('c minor', 'c major'));
+});
+
+/* ────────────────────────────────────────────────────────────────
+   Difficulty + filtering
+   ──────────────────────────────────────────────────────────────── */
+
+test('getChordDifficulty: classifies chord names by suffix', () => {
+  assert.equal(getChordDifficulty('C major'),  'easy');
+  assert.equal(getChordDifficulty('A minor'),  'easy');
+  assert.equal(getChordDifficulty('G7'),       'easy');
+  assert.equal(getChordDifficulty('Csus2'),    'medium');
+  assert.equal(getChordDifficulty('Dsus4'),    'medium');
+  assert.equal(getChordDifficulty('Cadd9'),    'medium');
+  assert.equal(getChordDifficulty('Cmaj7'),    'hard');
+  assert.equal(getChordDifficulty('Cm7'),      'hard');
+  assert.equal(getChordDifficulty('C9'),       'hard');
+  assert.equal(getChordDifficulty('C7#9'),     'hard');
+});
+
+test('getChordDifficulty: add9 is medium, plain 9 is hard (lookbehind works)', () => {
+  // The (?<!add)9$ rule distinguishes "add9" (medium) from "9" (hard).
+  assert.equal(getChordDifficulty('Cadd9'), 'medium');
+  assert.equal(getChordDifficulty('C9'),    'hard');
+});
+
+test('chordsForDifficulty: easy filter excludes anything past easy', () => {
+  const easy = chordsForDifficulty('easy');
+  assert.ok(easy.length > 0);
+  for (const c of easy) {
+    assert.equal(getChordDifficulty(c.name), 'easy', `${c.name} should be easy`);
+  }
+});
+
+test('chordsForDifficulty: hard excludes basic barre majors/minors', () => {
+  const hard = chordsForDifficulty('hard');
+  // No basic barre chord should appear in the hard pool.
+  for (const c of hard) {
+    assert.ok(!isBasicBarreChord(c), `basic barre chord leaked into hard pool: ${c.name}`);
+  }
+});
+
+test('qualitiesForDifficulty: each difficulty extends the previous', () => {
+  const easy   = qualitiesForDifficulty('easy');
+  const medium = qualitiesForDifficulty('medium');
+  const hard   = qualitiesForDifficulty('hard');
+  for (const q of easy)   assert.ok(medium.includes(q), `medium missing ${q}`);
+  for (const q of medium) assert.ok(hard.includes(q),   `hard missing ${q}`);
+});
+
+/* ────────────────────────────────────────────────────────────────
+   Interval extraction
+   ──────────────────────────────────────────────────────────────── */
+
+test('buildChordIntervals: returns root/3rd/5th notes for C major (E-shape)', () => {
+  const cMajor = CHORD_SHAPES.find(c => c.name === 'C major' && c.positions.length === 6);
+  const ivs = buildChordIntervals(cMajor);
+  const byIv = Object.fromEntries(ivs.map(i => [i.symbol, i.note]));
+  assert.equal(byIv['1'], 'C');
+  assert.equal(byIv['3'], 'E');
+  assert.equal(byIv['5'], 'G');
+});
+
+test('buildChordIntervals: minor chords have b3 instead of 3', () => {
+  const aMinor = CHORD_SHAPES.find(c => c.name === 'A minor');
+  const ivs = buildChordIntervals(aMinor);
+  const symbols = ivs.map(i => i.symbol);
+  assert.ok(symbols.includes('b3'));
+  assert.ok(!symbols.includes('3'));
+});
+
+test('buildChordIntervals: deduplicates symbols, preserving IV_ORDER', () => {
+  // Every chord with a 6-note positions list has duplicate roots/fifths;
+  // buildChordIntervals should yield each interval once.
+  const cMajor = CHORD_SHAPES.find(c => c.name === 'C major' && c.positions.length === 6);
+  const symbols = buildChordIntervals(cMajor).map(i => i.symbol);
+  assert.equal(new Set(symbols).size, symbols.length);
+});
+
+/* ────────────────────────────────────────────────────────────────
+   CHORD_SHAPES data integrity — every position's note must match
+   the interval it claims to be, given the chord's root.
+   ──────────────────────────────────────────────────────────────── */
+
+// Semitone offsets for every interval symbol used in CHORD_SHAPES.
+const INTERVAL_SEMITONES = {
+  '1':  0,
+  '2':  2,
+  'b3': 3,
+  '3':  4,
+  '4':  5,
+  '5':  7,
+  'b7': 10,
+  '7':  11,
+  '9':  14 % 12,
+  '#9': 15 % 12,
+};
+
+function rootOf(name) {
+  const m = name.match(/^([A-G][#b]?)/);
+  return m ? m[1] : null;
+}
+
+test('CHORD_SHAPES integrity: every position matches its claimed interval', () => {
+  for (const chord of CHORD_SHAPES) {
+    const root = rootOf(chord.name);
+    assert.ok(root, `could not parse root from ${chord.name}`);
+    const rootIdx = CHROMATIC.indexOf(root.replace('Db','C#').replace('Eb','D#').replace('Gb','F#').replace('Ab','G#').replace('Bb','A#'));
+    assert.ok(rootIdx >= 0, `unknown root ${root} in ${chord.name}`);
+    for (const p of chord.positions) {
+      const expectedSemitone = INTERVAL_SEMITONES[p.iv];
+      assert.notEqual(expectedSemitone, undefined, `unknown interval ${p.iv} in ${chord.name}`);
+      const actualNote = noteAt(p.s, p.f, 'guitar');
+      const expectedNote = CHROMATIC[(rootIdx + expectedSemitone) % 12];
+      assert.equal(
+        actualNote, expectedNote,
+        `${chord.name}: position s=${p.s} f=${p.f} claims ${p.iv} but produces ${actualNote}, expected ${expectedNote}`,
+      );
+    }
+  }
+});
+
+test('CHORD_SHAPES: every shape has a root (interval "1") on some string', () => {
+  for (const chord of CHORD_SHAPES) {
+    const hasRoot = chord.positions.some(p => p.iv === '1');
+    assert.ok(hasRoot, `${chord.name} has no root position`);
+  }
+});

@@ -20,6 +20,9 @@ var htmlPage []byte
 //go:embed html/styles.css
 var cssPage []byte
 
+//go:embed html/lib.js
+var libJS []byte
+
 //go:embed html/favicon.ico
 var faviconBytes []byte
 
@@ -147,6 +150,12 @@ func pageHandler() http.Handler {
 		h.Set("Cache-Control", "public, max-age=86400")
 		w.Write(cssPage)
 	})
+	mux.HandleFunc("/lib.js", func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Type", "application/javascript; charset=utf-8")
+		h.Set("Cache-Control", "public, max-age=86400")
+		w.Write(libJS)
+	})
 	mux.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Content-Type", "image/x-icon")
@@ -163,7 +172,7 @@ func pageHandler() http.Handler {
 		// all script/font origins are pinned to the CDNs the page actually uses.
 		h.Set("Content-Security-Policy",
 			"default-src 'none'; "+
-				"script-src https://unpkg.com 'unsafe-inline' 'unsafe-eval'; "+
+				"script-src 'self' https://unpkg.com 'unsafe-inline' 'unsafe-eval'; "+
 				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
 				"font-src https://fonts.gstatic.com; "+
 				"connect-src 'none'; "+

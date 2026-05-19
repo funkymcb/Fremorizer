@@ -25,6 +25,10 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Verify module checksums
         run: go mod verify
 
@@ -33,6 +37,9 @@ jobs:
 
       - name: Test
         run: go test ./...
+
+      - name: Test (JS lib)
+        run: node --test html/lib.test.js
 
       - name: Build
         run: CGO_ENABLED=0 go build ./...

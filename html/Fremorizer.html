@@ -29,11 +29,16 @@ const showNote = (n, style='both') => {
   return DISPLAY_BOTH[n] || n;
 };
 
-// Top-to-bottom: high E, B, G, D, A, low E
-const STRINGS = ['E','B','G','D','A','E'];
+// Top-to-bottom tunings (high → low)
+const TUNINGS = {
+  guitar: ['E','B','G','D','A','E'],
+  bass:   ['G','D','A','E'],
+};
+const stringsFor = inst => TUNINGS[inst] || TUNINGS.guitar;
 
-function noteAt(si, fret) {
-  const idx = CHROMATIC.indexOf(STRINGS[si]);
+function noteAt(si, fret, inst='guitar') {
+  const strings = stringsFor(inst);
+  const idx = CHROMATIC.indexOf(strings[si]);
   return CHROMATIC[(idx + fret) % 12];
 }
 
@@ -429,10 +434,13 @@ function shuffleArr(arr) {
 /* ═══════════════════════════════════════
    FRETBOARD SVG
 ═══════════════════════════════════════ */
-function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both', boardType='rosewood', theme='vintage', freeLearn=false }) {
+function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both', boardType='rosewood', theme='vintage', freeLearn=false, instrument='guitar' }) {
+  const strings = stringsFor(instrument);
+  const nStrings = strings.length;
+  const lastS = nStrings - 1;
   const FW = 70, SH = 32, ML = 54, MT = 36, MB = 18;
   const W = ML + totalFrets * FW + 22;
-  const H = MT + 5 * SH + MB;
+  const H = MT + lastS * SH + MB;
   const cx = f => f === 0 ? 14 : ML + (f - 0.5) * FW;
   const cy = s => MT + s * SH;
   // Board colors — theme + board type aware
@@ -485,7 +493,9 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
   const noteTextColor    = isVintage ? (isMaple ? '#5a3a10' : '#d4902a')
                          : (isMaple  ? '#5a3a10' : accentColor);
 
-  const stringWidths = [1.0, 1.3, 1.7, 2.2, 2.8, 3.5];
+  const stringWidths = instrument === 'bass'
+    ? [2.0, 2.8, 3.6, 4.4]
+    : [1.0, 1.3, 1.7, 2.2, 2.8, 3.5];
 
   const INLAY = [3,5,7,9];
   const INLAY2 = [12];
@@ -513,14 +523,14 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       </defs>
 
       {/* Board background */}
-      <rect x={ML} y={MT - SH*0.55} width={totalFrets*FW} height={5*SH + SH*1.1}
+      <rect x={ML} y={MT - SH*0.55} width={totalFrets*FW} height={lastS*SH + SH*1.1}
         fill="url(#bgrd)" rx="2"/>
 
       {/* Wood grain lines */}
       {[0.2,0.45,0.72,0.88].map((t,i) => (
         <line key={i}
-          x1={ML} y1={MT - SH*0.55 + t*(5*SH+SH*1.1)}
-          x2={ML+totalFrets*FW} y2={MT - SH*0.55 + t*(5*SH+SH*1.1)}
+          x1={ML} y1={MT - SH*0.55 + t*(lastS*SH+SH*1.1)}
+          x2={ML+totalFrets*FW} y2={MT - SH*0.55 + t*(lastS*SH+SH*1.1)}
           stroke={grainColor} strokeWidth="1"/>
       ))}
 
@@ -535,18 +545,18 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
         <>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
-            width={(fretSet[1]-fretSet[0]+1)*FW} height={5*SH+SH*1.1}
+            width={(fretSet[1]-fretSet[0]+1)*FW} height={lastS*SH+SH*1.1}
             fill={`rgba(${fillRgb},0.13)`} rx="2"/>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
-            width={(fretSet[1]-fretSet[0]+1)*FW} height={5*SH+SH*1.1}
+            width={(fretSet[1]-fretSet[0]+1)*FW} height={lastS*SH+SH*1.1}
             fill="none" stroke={`rgba(${strokeRgb},0.55)`} strokeWidth="1.5" rx="2"/>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={3}
             fill={`rgba(${barRgb},0.6)`} rx="1"/>
           <rect
-            x={ML + (fretSet[0]-1)*FW} y={MT + 5*SH + SH*0.55 - 3}
+            x={ML + (fretSet[0]-1)*FW} y={MT + lastS*SH + SH*0.55 - 3}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={3}
             fill={`rgba(${barRgb},0.6)`} rx="1"/>
         </>
@@ -555,29 +565,29 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
 
       {/* Inlay dots */}
       {INLAY.map(f => f <= totalFrets && (
-        <circle key={f} cx={cx(f)} cy={MT + 2.5*SH} r={5.5}
+        <circle key={f} cx={cx(f)} cy={MT + (lastS/2)*SH} r={5.5}
           fill={inlayFill} stroke={inlayStroke} strokeWidth="0.5"/>
       ))}
-      {INLAY2.filter(f => f <= totalFrets).map(f => [1.2, 3.8].map((sv,i) => (
+      {INLAY2.filter(f => f <= totalFrets).map(f => [lastS*0.24, lastS*0.76].map((sv,i) => (
         <circle key={`${f}-${i}`} cx={cx(f)} cy={MT + sv*SH} r={5.5}
           fill={inlayFill} stroke={inlayStroke} strokeWidth="0.5"/>
       )))}
 
       {/* Nut */}
-      <rect x={ML-5} y={MT-SH*0.55} width={5} height={5*SH+SH*1.1}
+      <rect x={ML-5} y={MT-SH*0.55} width={5} height={lastS*SH+SH*1.1}
         fill="url(#nutGrad)" rx="1"/>
 
       {/* Fret lines */}
       {Array.from({length:totalFrets},(_,i)=>i+1).map(f => (
         <line key={f}
           x1={ML+f*FW} y1={MT-SH*0.55}
-          x2={ML+f*FW} y2={MT+5*SH+SH*0.55}
+          x2={ML+f*FW} y2={MT+lastS*SH+SH*0.55}
           stroke={f===12?fret12Color:fretColor}
           strokeWidth={f===12?2.5:1.5}/>
       ))}
 
       {/* String lines */}
-      {STRINGS.map((_, s) => (
+      {strings.map((_, s) => (
         <line key={s}
           x1={ML-5} y1={cy(s)} x2={ML+totalFrets*FW+1} y2={cy(s)}
           stroke={stringColor} strokeWidth={stringWidths[s]} opacity="0.85"/>
@@ -590,7 +600,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       ))}
 
       {/* String labels — in free-learn mode show clickable ✕ / revealed note */}
-      {STRINGS.map((n, s) => {
+      {strings.map((n, s) => {
         const openKey = `${s}-0`;
         const isFreeLearning = freeLearn;
         const openRevealed = showNotes[openKey];
@@ -607,7 +617,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
             <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
               fill={noteTextColor} fontSize="11" fontWeight="600"
               fontFamily="'DM Mono',monospace"
-              style={{pointerEvents:'none'}}>{showNote(noteAt(s,0), noteStyle)}</text>
+              style={{pointerEvents:'none'}}>{showNote(noteAt(s,0,instrument), noteStyle)}</text>
           );
         }
         return (
@@ -621,13 +631,13 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       {Object.entries(showNotes).filter(([key]) => !key.endsWith('-0')).map(([key, note]) => {
         const [s,f] = key.split('-').map(Number);
         const r = 13;
-        const fs = showNote(noteAt(s,f),noteStyle).includes('/') ? 8 : 11;
+        const fs = showNote(noteAt(s,f,instrument),noteStyle).includes('/') ? 8 : 11;
         return (
           <g key={key}>
             <circle cx={cx(f)} cy={cy(s)} r={r} fill={noteCircleBg} stroke={noteCircleStroke} strokeWidth="1"/>
             <text x={cx(f)} y={cy(s)+4} textAnchor="middle"
               fill={noteTextColor} fontSize={fs}
-              fontFamily="'DM Mono',monospace" fontWeight="500">{showNote(noteAt(s,f),noteStyle)}</text>
+              fontFamily="'DM Mono',monospace" fontWeight="500">{showNote(noteAt(s,f,instrument),noteStyle)}</text>
           </g>
         );
       })}
@@ -678,7 +688,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
       )}
 
       {/* Interactive click areas */}
-      {interactive && STRINGS.map((_,s) =>
+      {interactive && strings.map((_,s) =>
         Array.from({length:totalFrets+1},(_,f)=>f).map(f => {
           const inRange = !fretSet || (f===0 || (f>=fretSet[0] && f<=fretSet[1]));
           const isFret0 = f === 0;
@@ -844,11 +854,13 @@ function saveResult({ mode, timeSeconds, totalItems, avgPerItem }) {
 ═══════════════════════════════════════ */
 function RandomNoteGame({ onBack, tweaks }) {
   const totalFrets = tweaks.frets;
-  const total = 6 * totalFrets;
+  const instrument = tweaks.instrument || 'guitar';
+  const nStrings = stringsFor(instrument).length;
+  const total = nStrings * totalFrets;
   const [done, setDone] = useState(new Set());
   const [queue, setQueue] = useState(() => {
     const q = [];
-    for(let s=0;s<6;s++) for(let f=1;f<=totalFrets;f++) q.push({s,f});
+    for(let s=0;s<nStrings;s++) for(let f=1;f<=totalFrets;f++) q.push({s,f});
     return shuffleArr(q);
   });
   const [qi, setQi] = useState(0);
@@ -873,7 +885,7 @@ function RandomNoteGame({ onBack, tweaks }) {
   }, []);
 
   const current = queue[qi % queue.length];
-  const expected = current ? noteAt(current.s, current.f) : null;
+  const expected = current ? noteAt(current.s, current.f, instrument) : null;
 
   function handleAnswer(note) {
     if (!current) return;
@@ -947,7 +959,7 @@ function RandomNoteGame({ onBack, tweaks }) {
       </div>
 
       <div className="fretboard-wrap">
-        <Fretboard markers={markers} totalFrets={totalFrets} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
+        <Fretboard markers={markers} totalFrets={totalFrets} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme} instrument={instrument}/>
       </div>
 
       <div className="input-area">
@@ -999,27 +1011,28 @@ function RandomNoteGame({ onBack, tweaks }) {
    GAME MODE 2: FIND NOTES IN FRET SET
 ═══════════════════════════════════════ */
 const FRET_SETS_MODE2 = [[1,3],[4,6],[7,9],[10,12]];
-const SET_SIZE = 18; // 3 frets × 6 strings
-const TOTAL_MODE2 = SET_SIZE * FRET_SETS_MODE2.length; // 72
 
-function notesInSet(fretSet) {
-  // Returns shuffled list of unique notes that appear in this fret set
+function notesInSet(fretSet, nStrings, instrument) {
   const seen = new Set();
-  for(let s=0;s<6;s++) for(let f=fretSet[0];f<=fretSet[1];f++) seen.add(noteAt(s,f));
+  for(let s=0;s<nStrings;s++) for(let f=fretSet[0];f<=fretSet[1];f++) seen.add(noteAt(s,f,instrument));
   return shuffleArr([...seen]);
 }
 
-function positionsOfNote(note, fretSet) {
+function positionsOfNote(note, fretSet, nStrings, instrument) {
   const positions = [];
-  for(let s=0;s<6;s++) for(let f=fretSet[0];f<=fretSet[1];f++)
-    if(noteAt(s,f)===note) positions.push(`${s}-${f}`);
+  for(let s=0;s<nStrings;s++) for(let f=fretSet[0];f<=fretSet[1];f++)
+    if(noteAt(s,f,instrument)===note) positions.push(`${s}-${f}`);
   return positions;
 }
 
 function FindNotesGame({ onBack, tweaks }) {
+  const instrument = tweaks.instrument || 'guitar';
+  const nStrings = stringsFor(instrument).length;
+  const SET_SIZE = 3 * nStrings;
+  const TOTAL_MODE2 = SET_SIZE * FRET_SETS_MODE2.length;
   const [setIdx, setSetIdx] = useState(0);
   const fretSet = FRET_SETS_MODE2[setIdx];
-  const [noteQueue, setNoteQueue] = useState(() => notesInSet(FRET_SETS_MODE2[0]));
+  const [noteQueue, setNoteQueue] = useState(() => notesInSet(FRET_SETS_MODE2[0], nStrings, instrument));
   const [noteQi, setNoteQi] = useState(0);
   const [foundInSet, setFoundInSet] = useState(new Set());
   const [totalFound, setTotalFound] = useState(0);
@@ -1039,14 +1052,14 @@ function FindNotesGame({ onBack, tweaks }) {
   }, []);
 
   const targetNote = noteQueue[noteQi] ?? null;
-  const targetPositions = targetNote ? positionsOfNote(targetNote, fretSet) : [];
+  const targetPositions = targetNote ? positionsOfNote(targetNote, fretSet, nStrings, instrument) : [];
   const remainingForNote = targetPositions.filter(p => !foundInSet.has(p));
 
   function clickCell(s, f) {
     if (setComplete || !targetNote) return;
     const key = `${s}-${f}`;
     if (foundInSet.has(key)) return;
-    if (noteAt(s,f) === targetNote) {
+    if (noteAt(s,f,instrument) === targetNote) {
       const newFound = new Set(foundInSet); newFound.add(key);
       setFoundInSet(newFound);
       setTotalFound(t => t+1);
@@ -1066,7 +1079,7 @@ function FindNotesGame({ onBack, tweaks }) {
               const nextIdx = (setIdx + 1) % FRET_SETS_MODE2.length;
               const nextFretSet = FRET_SETS_MODE2[nextIdx];
               setSetIdx(nextIdx);
-              setNoteQueue(notesInSet(nextFretSet));
+              setNoteQueue(notesInSet(nextFretSet, nStrings, instrument));
               setNoteQi(0);
               setFoundInSet(new Set());
               setSetComplete(false);
@@ -1083,7 +1096,7 @@ function FindNotesGame({ onBack, tweaks }) {
   }
 
   const markers = [];
-  for(let s=0;s<6;s++) for(let f=fretSet[0];f<=fretSet[1];f++) {
+  for(let s=0;s<nStrings;s++) for(let f=fretSet[0];f<=fretSet[1];f++) {
     const key = `${s}-${f}`;
     if (foundInSet.has(key)) markers.push({s,f,type:'correct',label:'',opacity:0.45});
     if (wrongKey===key) markers.push({s,f,type:'wrong',label:'✗'});
@@ -1119,7 +1132,7 @@ function FindNotesGame({ onBack, tweaks }) {
       </div>
 
       <div className="fretboard-wrap">
-        <Fretboard markers={markers} onCellClick={clickCell} fretSet={fretSet} interactive={true} totalFrets={12} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
+        <Fretboard markers={markers} onCellClick={clickCell} fretSet={fretSet} interactive={true} totalFrets={12} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme} instrument={instrument}/>
       </div>
 
       <div className="input-area">
@@ -1236,6 +1249,7 @@ function chordNameCorrect(norm, name) {
 ═══════════════════════════════════════ */
 function ChordGame({ onBack, tweaks }) {
   const diff = tweaks.chordDifficulty || 'easy';
+  const isBass = (tweaks.instrument || 'guitar') === 'bass';
   const [chords] = useState(() => shuffleArr(chordsForDifficulty(diff)));
   const [ci, setCi] = useState(0);
   const [input, setInput] = useState('');
@@ -1259,6 +1273,22 @@ function ChordGame({ onBack, tweaks }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  if (isBass) return (
+    <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:24}}>
+      <div className="game-header">
+        <span className="game-title">▸ Chord Identification</span>
+        <button className="back-btn" onClick={onBack}>← back</button>
+      </div>
+      <div style={{fontFamily:'DM Mono',fontSize:'0.95rem',color:'var(--text-dim)',lineHeight:1.6,padding:'24px 0'}}>
+        Chord mode uses guitar-specific CAGED shapes and isn't available for bass.<br/>
+        Switch instrument to <strong style={{color:'var(--gold)'}}>guitar</strong> in Tweaks to play.
+      </div>
+      <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
+        ← back to menu
+      </button>
+    </div>
+  );
 
   const chord = chords[ci % chords.length];
 
@@ -1446,6 +1476,8 @@ function ChordGame({ onBack, tweaks }) {
 ═══════════════════════════════════════ */
 function FreeLearn({ onBack, tweaks }) {
   const totalFrets = tweaks.frets;
+  const instrument = tweaks.instrument || 'guitar';
+  const nStrings = stringsFor(instrument).length;
   const [revealed, setRevealed] = useState({});
   const [sel, setSel] = useState({s:0,f:1});
   const [scaleRoot, setScaleRoot] = useState('C');
@@ -1460,7 +1492,7 @@ function FreeLearn({ onBack, tweaks }) {
     const key = `${s}-${f}`;
     setRevealed(prev => {
       const n = {...prev};
-      if (n[key]) delete n[key]; else n[key] = showNote(noteAt(s,f), tweaks.noteStyle);
+      if (n[key]) delete n[key]; else n[key] = showNote(noteAt(s,f,instrument), tweaks.noteStyle);
       return n;
     });
     setSel({s,f});
@@ -1470,7 +1502,7 @@ function FreeLearn({ onBack, tweaks }) {
     function onKey(e) {
       const {s,f} = sel;
       if (e.key==='ArrowUp'||e.key==='k') setSel({s:Math.max(0,s-1),f});
-      else if (e.key==='ArrowDown'||e.key==='j') setSel({s:Math.min(5,s+1),f});
+      else if (e.key==='ArrowDown'||e.key==='j') setSel({s:Math.min(nStrings-1,s+1),f});
       else if (e.key==='ArrowLeft'||e.key==='h') setSel({s,f:Math.max(0,f-1)});
       else if (e.key==='ArrowRight'||e.key==='l') setSel({s,f:Math.min(totalFrets,f+1)});
       else if (e.key===' ') { e.preventDefault(); handleCellClick(s,f); }
@@ -1479,10 +1511,11 @@ function FreeLearn({ onBack, tweaks }) {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [sel, revealed, totalFrets]);
+  }, [sel, revealed, totalFrets, nStrings]);
 
-  // Match revealed notes against chord shapes
+  // Match revealed notes against chord shapes (guitar-only; shapes are 6-string CAGED)
   const matchedChords = (() => {
+    if (instrument !== 'guitar') return [];
     const keys = Object.keys(revealed);
     if (keys.length < 3) return [];
     const revSet = new Set(keys);
@@ -1519,8 +1552,8 @@ function FreeLearn({ onBack, tweaks }) {
   // Build scale markers
   const scaleMarkers = [];
   if (scaleSet) {
-    for(let s=0;s<6;s++) for(let f=1;f<=totalFrets;f++) {
-      const n = noteAt(s,f);
+    for(let s=0;s<nStrings;s++) for(let f=1;f<=totalFrets;f++) {
+      const n = noteAt(s,f,instrument);
       if (scaleSet.has(n) && !revealed[`${s}-${f}`]) {
         const isRoot = n===scaleRoot;
         scaleMarkers.push({s,f,type:isRoot?'question':'interval',label:n});
@@ -1545,6 +1578,7 @@ function FreeLearn({ onBack, tweaks }) {
           totalFrets={totalFrets}
           noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}
           freeLearn={true}
+          instrument={instrument}
         />
       </div>
 
@@ -1830,7 +1864,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "noteStyle": "both",
   "theme": "vintage",
   "board": "rosewood",
-  "chordDifficulty": "easy"
+  "chordDifficulty": "easy",
+  "instrument": "guitar"
 }/*EDITMODE-END*/;
 
 function ThemeBar({ tweaks, setTweaks }) {
@@ -1891,6 +1926,15 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
           {[['rosewood','Rosewood'],['maple','Maple']].map(([val,label]) => (
             <button key={val} className={`tweak-opt ${tweaks.board===val?'active':''}`}
               onClick={() => setTweaks(t=>({...t,board:val}))}>{label}</button>
+          ))}
+        </div>
+      </div>
+      <div className="tweak-row">
+        <div className="tweak-label">INSTRUMENT</div>
+        <div className="tweak-options">
+          {[['guitar','Guitar'],['bass','Bass']].map(([val,label]) => (
+            <button key={val} className={`tweak-opt ${(tweaks.instrument||'guitar')===val?'active':''}`}
+              onClick={() => setTweaks(t=>({...t,instrument:val}))}>{label}</button>
           ))}
         </div>
       </div>

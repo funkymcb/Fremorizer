@@ -10,6 +10,7 @@ const {
   normalizeChordName, expandChordInput, matchesChordName, chordNameCorrect,
   getChordDifficulty, isBasicBarreChord, chordsForDifficulty, qualitiesForDifficulty,
   buildChordIntervals,
+  triadStringSets, findTriads, triadKey, TRIAD_MAX_SPAN,
 } = require('./lib.js');
 
 /* ────────────────────────────────────────────────────────────────
@@ -276,4 +277,92 @@ test('CHORD_SHAPES: every shape has a root (interval "1") on some string', () =>
     const hasRoot = chord.positions.some(p => p.iv === '1');
     assert.ok(hasRoot, `${chord.name} has no root position`);
   }
+});
+
+/* ────────────────────────────────────────────────────────────────
+   Triad enumeration (Mode 4)
+   ──────────────────────────────────────────────────────────────── */
+
+test('triadStringSets: 6 strings → 4 contiguous sets, 4 strings → 2 sets', () => {
+  assert.deepEqual(triadStringSets(6), [[0,1,2],[1,2,3],[2,3,4],[3,4,5]]);
+  assert.deepEqual(triadStringSets(4), [[0,1,2],[1,2,3]]);
+  assert.deepEqual(triadStringSets(3), [[0,1,2]]);
+  assert.deepEqual(triadStringSets(2), []);
+});
+
+test('findTriads: each triad uses each chord tone exactly once', () => {
+  // C major on E/B/G strings — every voicing must contain one C, one E, one G.
+  const triads = findTriads('C', 'major', [0,1,2], 12, 'guitar');
+  assert.ok(triads.length > 0);
+  for (const t of triads) {
+    const notes = t.map(p => noteAt(p.s, p.f, 'guitar')).sort();
+    assert.deepEqual(notes, ['C','E','G'], `triad ${JSON.stringify(t)} produced ${notes}`);
+  }
+});
+
+test('findTriads: minor uses b3 (e.g., A minor → A/C/E, not A/C#/E)', () => {
+  const triads = findTriads('A', 'minor', [0,1,2], 12, 'guitar');
+  assert.ok(triads.length > 0);
+  for (const t of triads) {
+    const notes = t.map(p => noteAt(p.s, p.f, 'guitar')).sort();
+    assert.deepEqual(notes, ['A','C','E']);
+  }
+});
+
+test('findTriads: every voicing fits inside TRIAD_MAX_SPAN', () => {
+  // Sample a handful of chord+stringset combinations.
+  for (const root of ['C','F#','A','Eb']) {
+    for (const quality of ['major','minor']) {
+      for (const set of triadStringSets(6)) {
+        const triads = findTriads(root, quality, set, 12, 'guitar');
+        for (const t of triads) {
+          const frets = t.map(p => p.f);
+          const span = Math.max(...frets) - Math.min(...frets);
+          assert.ok(span <= TRIAD_MAX_SPAN,
+            `${root} ${quality} on [${set}] has span ${span}: ${JSON.stringify(t)}`);
+        }
+      }
+    }
+  }
+});
+
+test('findTriads: contains the canonical C major open voicing on E-B-G', () => {
+  // E@0 (high E open), C@1 (B fret 1), G@0 (G open) — second inversion.
+  const triads = findTriads('C', 'major', [0,1,2], 12, 'guitar');
+  const want = triadKey([{s:0,f:0},{s:1,f:1},{s:2,f:0}]);
+  assert.ok(triads.some(t => triadKey(t) === want),
+    `expected E0/C1/G0 voicing in: ${JSON.stringify(triads)}`);
+});
+
+test('findTriads: 3 triads per chord per E-B-G stringset within 12 frets', () => {
+  // Sanity check on the closed-voicing inversion count. A major/minor triad on
+  // 3 contiguous strings with a 4-fret span produces 3 inversions in a 12-fret
+  // window. If this number changes, the mode-4 stringset target (5/set) needs
+  // a corresponding chord-queue tweak.
+  assert.equal(findTriads('C', 'major', [0,1,2], 12, 'guitar').length, 3);
+  assert.equal(findTriads('D', 'minor', [0,1,2], 12, 'guitar').length, 3);
+  assert.equal(findTriads('G', 'major', [3,4,5], 12, 'guitar').length, 3);
+});
+
+test('findTriads: bass tuning produces playable triads on its 2 stringsets', () => {
+  for (const set of triadStringSets(4)) {
+    const triads = findTriads('C', 'major', set, 12, 'bass');
+    assert.ok(triads.length >= 1, `bass C major on [${set}] returned 0 triads`);
+    for (const t of triads) {
+      const notes = t.map(p => noteAt(p.s, p.f, 'bass')).sort();
+      assert.deepEqual(notes, ['C','E','G']);
+    }
+  }
+});
+
+test('findTriads: unknown root or malformed stringset returns empty', () => {
+  assert.deepEqual(findTriads('H', 'major', [0,1,2], 12, 'guitar'), []);
+  assert.deepEqual(findTriads('C', 'major', [0,1], 12, 'guitar'), []);
+  assert.deepEqual(findTriads('C', 'major', null, 12, 'guitar'), []);
+});
+
+test('triadKey: order-independent set identity', () => {
+  const a = [{s:0,f:0},{s:1,f:1},{s:2,f:0}];
+  const b = [{s:2,f:0},{s:0,f:0},{s:1,f:1}];
+  assert.equal(triadKey(a), triadKey(b));
 });

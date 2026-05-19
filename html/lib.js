@@ -553,6 +553,68 @@ function chordNameCorrect(norm, name) {
   return !!(ehName && matchesChordName(norm, ehName));
 }
 
+/* ═══════════════════════════════════════
+   TRIADS (Mode 4: Find Triads)
+═══════════════════════════════════════ */
+
+// Maximum fret distance between the lowest and highest fretted/open note
+// inside a single triad voicing. 4 covers the standard closed-voicing shapes
+// and the open-string voicings without admitting unplayable stretches.
+const TRIAD_MAX_SPAN = 4;
+
+// triadStringSets: contiguous 3-string windows, top (highest pitch) to bottom.
+// Guitar (6 strings) → 4 sets; bass (4 strings) → 2 sets.
+function triadStringSets(nStrings) {
+  const sets = [];
+  for (let i = 0; i + 2 < nStrings; i++) sets.push([i, i+1, i+2]);
+  return sets;
+}
+
+// findTriads: every distinct major/minor triad voicing for `root + quality` on
+// the given 3-string set, with each chord tone on exactly one string and a
+// fret span ≤ TRIAD_MAX_SPAN. Used by Mode 4 to score a player's clicks.
+function findTriads(root, quality, stringSet, totalFrets, instrument) {
+  const intervals = quality === 'minor' ? [0, 3, 7] : [0, 4, 7];
+  const rootIdx = CHROMATIC.indexOf(root);
+  if (rootIdx < 0 || !stringSet || stringSet.length !== 3) return [];
+  const chordNotes = intervals.map(i => CHROMATIC[(rootIdx + i) % 12]);
+
+  // For each string in the set, list every fret playing one of the 3 chord
+  // tones, tagged with which tone it is (0=root, 1=3rd/b3, 2=5th).
+  const perString = stringSet.map(s => {
+    const positions = [];
+    for (let f = 0; f <= totalFrets; f++) {
+      const idx = chordNotes.indexOf(noteAt(s, f, instrument));
+      if (idx >= 0) positions.push({ f, noteIdx: idx });
+    }
+    return positions;
+  });
+
+  const triads = [];
+  for (const p0 of perString[0]) {
+    for (const p1 of perString[1]) {
+      if (p1.noteIdx === p0.noteIdx) continue;
+      for (const p2 of perString[2]) {
+        if (p2.noteIdx === p0.noteIdx || p2.noteIdx === p1.noteIdx) continue;
+        const lo = Math.min(p0.f, p1.f, p2.f);
+        const hi = Math.max(p0.f, p1.f, p2.f);
+        if (hi - lo > TRIAD_MAX_SPAN) continue;
+        triads.push([
+          { s: stringSet[0], f: p0.f },
+          { s: stringSet[1], f: p1.f },
+          { s: stringSet[2], f: p2.f },
+        ]);
+      }
+    }
+  }
+  return triads;
+}
+
+// Canonical key for a triad — order-independent, used to compare triads as sets.
+function triadKey(positions) {
+  return positions.map(p => `${p.s}-${p.f}`).sort().join('|');
+}
+
 const api = {
   CHROMATIC, DISPLAY_BOTH, DISPLAY_FLAT, showNote,
   TUNINGS, stringsFor, noteAt, matchNote,
@@ -565,6 +627,7 @@ const api = {
   IV_ORDER, IV_LABEL, buildChordIntervals,
   CHORD_ENHARMONIC, expandChordInput, normalizeChordName,
   matchesChordName, chordNameCorrect,
+  TRIAD_MAX_SPAN, triadStringSets, findTriads, triadKey,
 };
 
 if (typeof module !== 'undefined' && module.exports) {

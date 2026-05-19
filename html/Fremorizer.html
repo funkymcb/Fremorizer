@@ -32,12 +32,13 @@ const {
   IV_ORDER, IV_LABEL, buildChordIntervals,
   CHORD_ENHARMONIC, expandChordInput, normalizeChordName,
   matchesChordName, chordNameCorrect,
+  triadStringSets, findTriads, triadKey,
 } = window.Fremorizer;
 
 /* ═══════════════════════════════════════
    FRETBOARD SVG
 ═══════════════════════════════════════ */
-function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both', boardType='rosewood', theme='vintage', freeLearn=false, instrument='guitar' }) {
+function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both', boardType='rosewood', theme='vintage', freeLearn=false, instrument='guitar' }) {
   const strings = stringsFor(instrument);
   const nStrings = strings.length;
   const lastS = nStrings - 1;
@@ -290,13 +291,40 @@ function Fretboard({ markers=[], onCellClick, fretSet, showNotes={}, interactive
           strokeWidth="1" rx="2"/>
       )}
 
+      {/* String set highlight (Mode 4) — rendered last so the frame is never
+          covered by the nut, strings, or markers. Theme-aware accent picked
+          to contrast with each theme's primary hue (gold/cyan/pink). */}
+      {stringSet && (() => {
+        const accent = theme === 'metal' ? '255,170,70'   // amber, opposite cyan
+                     : theme === 'funk'  ? '120,255,140'  // lime, opposite magenta
+                     :                     '160,120,240'; // violet, opposite vintage gold
+        const top = stringSet[0], bot = stringSet[stringSet.length-1];
+        const y = cy(top) - SH*0.55;
+        const h = (bot - top) * SH + SH*1.1;
+        const x = ML - 4;
+        const w = totalFrets * FW + 8;
+        return (
+        <g pointerEvents="none">
+          <rect x={x} y={y} width={w} height={h} fill={`rgba(${accent},0.07)`} rx="3"/>
+          <rect x={x}         y={y}         width={w} height={3} fill={`rgba(${accent},0.85)`} rx="1.5"/>
+          <rect x={x}         y={y + h - 3} width={w} height={3} fill={`rgba(${accent},0.85)`} rx="1.5"/>
+          <rect x={x}         y={y}         width={3} height={h} fill={`rgba(${accent},0.85)`} rx="1.5"/>
+          <rect x={x + w - 3} y={y}         width={3} height={h} fill={`rgba(${accent},0.85)`} rx="1.5"/>
+        </g>
+        );
+      })()}
+
       {/* Interactive click areas */}
       {interactive && strings.map((_,s) =>
         Array.from({length:totalFrets+1},(_,f)=>f).map(f => {
-          const inRange = !fretSet || (f===0 || (f>=fretSet[0] && f<=fretSet[1]));
+          const inFret   = !fretSet   || (f===0 || (f>=fretSet[0] && f<=fretSet[1]));
+          const inString = !stringSet || stringSet.includes(s);
+          const inRange  = inFret && inString;
           const isFret0 = f === 0;
-          const x = isFret0 ? (freeLearn ? ML-18-14 : cx(0)-14) : cx(f)-FW/2+1;
-          const width = isFret0 ? (freeLearn ? 28 : 28) : FW-2;
+          // Open-string hit-box spans the entire region left of the nut so
+          // clicking the string-name label (e.g. "E") also registers as fret 0.
+          const x = isFret0 ? 0 : cx(f)-FW/2+1;
+          const width = isFret0 ? ML-5 : FW-2;
           return (
             <rect key={`${s}-${f}`}
               x={x} y={cy(s)-SH/2}
@@ -952,7 +980,288 @@ function ChordGame({ onBack, tweaks }) {
 }
 
 /* ═══════════════════════════════════════
-   GAME MODE 4: FREE LEARNING
+   GAME MODE 4: FIND TRIADS
+═══════════════════════════════════════ */
+// A "chord set" = all valid triad voicings of one chord on the current
+// stringset. The player completes 5 chord sets before the next stringset.
+const CHORD_SETS_PER_STRINGSET = 5;
+
+// Build a shuffled queue of {root, quality} chords that each have at least one
+// playable triad voicing on the given stringset within `totalFrets`. Major and
+// minor only for now.
+function buildTriadChordQueue(stringSet, totalFrets, instrument) {
+  const candidates = [];
+  for (const root of CHROMATIC) {
+    for (const quality of ['major', 'minor']) {
+      if (findTriads(root, quality, stringSet, totalFrets, instrument).length > 0) {
+        candidates.push({ root, quality });
+      }
+    }
+  }
+  return shuffleArr(candidates);
+}
+
+function FindTriadsGame({ onBack, tweaks }) {
+  const totalFrets = tweaks.frets;
+  const instrument = tweaks.instrument || 'guitar';
+  const nStrings = stringsFor(instrument).length;
+  const stringSets = useMemo(() => triadStringSets(nStrings), [nStrings]);
+  const TOTAL_CHORD_SETS = stringSets.length * CHORD_SETS_PER_STRINGSET;
+
+  const [setIdx, setSetIdx] = useState(0);
+  const currentSet = stringSets[setIdx];
+
+  const [chordQueue, setChordQueue] = useState(() =>
+    buildTriadChordQueue(stringSets[0], totalFrets, instrument));
+  const [chordIdx, setChordIdx] = useState(0);
+  const currentChord = chordQueue[chordIdx % Math.max(1, chordQueue.length)];
+
+  const [marks, setMarks] = useState([]);                          // in-progress: 0–3 {s,f}
+  const [foundTriadsThisChord, setFoundTriadsThisChord] = useState([]); // cleared on chord change
+  const [chordSetsCompletedThisSet, setChordSetsCompletedThisSet] = useState(0);
+  const [totalChordSetsCompleted, setTotalChordSetsCompleted] = useState(0);
+  const [feedback, setFeedback] = useState(null);                  // 'correct' | 'wrong'
+  const [wrongMarks, setWrongMarks] = useState(null);
+  const [setComplete, setSetComplete] = useState(false);
+  const [finished, setFinished] = useState(false);
+  const [time, startTimer, stopTimer] = useTimer();
+
+  useEffect(() => { startTimer(); }, []);
+  useEffect(() => {
+    if (finished) saveResult({ mode:'triads', timeSeconds:time, totalItems:TOTAL_CHORD_SETS, avgPerItem:+(time/TOTAL_CHORD_SETS).toFixed(2) });
+  }, [finished]);
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') {
+        if (marks.length > 0) setMarks([]);
+        else onBack();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [marks]);
+
+  // Wipe found-triad markers when the chord prompt changes so the new chord
+  // starts on a clean board. Counters are unaffected.
+  useEffect(() => {
+    setFoundTriadsThisChord([]);
+    setMarks([]);
+  }, [chordIdx]);
+
+  const validTriadsForChord = useMemo(() =>
+    currentChord ? findTriads(currentChord.root, currentChord.quality, currentSet, totalFrets, instrument) : [],
+    [currentChord, currentSet, totalFrets, instrument]);
+
+  const foundKeysThisChord = useMemo(() =>
+    new Set(foundTriadsThisChord.map(triadKey)),
+    [foundTriadsThisChord]);
+
+  const remainingForChord = validTriadsForChord.filter(t => !foundKeysThisChord.has(triadKey(t)));
+
+  function clickCell(s, f) {
+    if (setComplete || finished || feedback) return;
+    if (!currentSet.includes(s)) return;
+
+    // Ignore clicks on cells that already belong to a found triad of the
+    // CURRENT chord (foundTriadsThisChord is cleared on chord change).
+    if (foundTriadsThisChord.some(t => t.some(p => p.s === s && p.f === f))) return;
+
+    // Toggle an existing mark off.
+    const existingIdx = marks.findIndex(m => m.s === s && m.f === f);
+    if (existingIdx >= 0) {
+      setMarks(marks.filter((_, i) => i !== existingIdx));
+      return;
+    }
+
+    const newMarks = [...marks, { s, f }];
+    if (newMarks.length < 3) {
+      setMarks(newMarks);
+      return;
+    }
+
+    // 3 marks — validate as a triad of the current chord.
+    const key = triadKey(newMarks);
+    const matched = validTriadsForChord.find(t => triadKey(t) === key);
+
+    if (matched && !foundKeysThisChord.has(key)) {
+      const updatedFound = [...foundTriadsThisChord, matched];
+      setFoundTriadsThisChord(updatedFound);
+      setFeedback('correct');
+      setMarks(newMarks);
+      setTimeout(() => {
+        setFeedback(null);
+        setMarks([]);
+      }, 500);
+
+      // Did this complete the current chord's set of triads?
+      const chordSetComplete = validTriadsForChord.every(t =>
+        updatedFound.some(ft => triadKey(ft) === triadKey(t)));
+
+      if (chordSetComplete) {
+        const newChordSetsThisSet = chordSetsCompletedThisSet + 1;
+        const newTotal = totalChordSetsCompleted + 1;
+        setChordSetsCompletedThisSet(newChordSetsThisSet);
+        setTotalChordSetsCompleted(newTotal);
+
+        if (newChordSetsThisSet >= CHORD_SETS_PER_STRINGSET) {
+          setSetComplete(true);
+          const isLastSet = setIdx === stringSets.length - 1;
+          if (isLastSet) {
+            stopTimer();
+            setTimeout(() => setFinished(true), 1400);
+          } else {
+            setTimeout(() => {
+              const nextIdx = setIdx + 1;
+              const nextSet = stringSets[nextIdx];
+              setSetIdx(nextIdx);
+              setChordQueue(buildTriadChordQueue(nextSet, totalFrets, instrument));
+              setChordIdx(0);
+              setFoundTriadsThisChord([]);
+              setChordSetsCompletedThisSet(0);
+              setSetComplete(false);
+              setMarks([]);
+            }, 1400);
+          }
+        } else {
+          // Advance to the next chord prompt within this stringset.
+          setTimeout(() => setChordIdx(c => c + 1), 700);
+        }
+      }
+    } else {
+      setFeedback('wrong');
+      setWrongMarks(newMarks);
+      setMarks(newMarks);
+      setTimeout(() => {
+        setFeedback(null);
+        setWrongMarks(null);
+        setMarks([]);
+      }, 800);
+    }
+  }
+
+  if (finished) return (
+    <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:32}}>
+      <div style={{fontSize:'clamp(2rem,5vw,3rem)',fontWeight:900,fontStyle:'italic',color:'var(--gold)',textShadow:'0 0 40px rgba(200,144,48,0.4)'}}>
+        Triad Master!
+      </div>
+      <div style={{fontFamily:'DM Mono',fontSize:'0.85rem',color:'var(--text-dim)',letterSpacing:'0.1em'}}>
+        You completed every triad set across all string sets
+      </div>
+      <div style={{display:'flex',gap:32,justifyContent:'center',flexWrap:'wrap',fontFamily:'DM Mono',fontSize:'0.8rem',color:'var(--text-dim)'}}>
+        <span><span style={{color:'var(--text-muted)'}}>time </span>{time}s</span>
+        <span><span style={{color:'var(--text-muted)'}}>triad sets </span>{TOTAL_CHORD_SETS}</span>
+        <span><span style={{color:'var(--text-muted)'}}>avg/set </span>{(time/TOTAL_CHORD_SETS).toFixed(1)}s</span>
+      </div>
+      <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
+      <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
+        ← back to menu
+      </button>
+    </div>
+  );
+
+  // Markers: found triads (green, faint, with note name) + current marks (cyan) + wrong-flash (red ✗)
+  const markers = [];
+  for (const triad of foundTriadsThisChord) {
+    for (const p of triad) {
+      markers.push({
+        s: p.s, f: p.f,
+        type: 'correct',
+        label: showNote(noteAt(p.s, p.f, instrument), tweaks.noteStyle),
+        opacity: 0.55,
+      });
+    }
+  }
+  const wrongKeySet = new Set((wrongMarks || []).map(m => `${m.s}-${m.f}`));
+  for (const m of marks) {
+    const key = `${m.s}-${m.f}`;
+    if (wrongKeySet.has(key)) {
+      markers.push({ s: m.s, f: m.f, type: 'wrong', label: '✗' });
+    } else {
+      markers.push({
+        s: m.s, f: m.f,
+        type: feedback === 'correct' ? 'correct' : 'marked',
+        label: showNote(noteAt(m.s, m.f, instrument), tweaks.noteStyle),
+      });
+    }
+  }
+
+  const tuning = stringsFor(instrument);
+  const stringLabels = currentSet.map(s => tuning[s]).join('-');
+  const qualityWord = currentChord ? (currentChord.quality === 'minor' ? 'minor' : 'major') : '';
+  const chordDisplay = currentChord
+    ? `${showNote(currentChord.root, tweaks.noteStyle)} ${qualityWord}`
+    : '—';
+
+  return (
+    <div className="game-wrap">
+      <div className="game-header">
+        <span className="game-title">▸ Find Triads</span>
+        <button className="back-btn" onClick={onBack}>← back</button>
+      </div>
+
+      <div className="fretboard-wrap">
+        <Fretboard
+          markers={markers}
+          onCellClick={clickCell}
+          stringSet={currentSet}
+          interactive={true}
+          totalFrets={totalFrets}
+          noteStyle={tweaks.noteStyle}
+          boardType={tweaks.board}
+          theme={tweaks.theme}
+          instrument={instrument}
+        />
+      </div>
+
+      <div className="input-area">
+        {setComplete ? (
+          <div style={{fontFamily:'DM Mono',fontSize:'0.95rem',color:'var(--correct)',letterSpacing:'0.1em'}}>
+            ✓ String set complete! Next set…
+          </div>
+        ) : (
+          <div style={{textAlign:'center'}}>
+            <div className="prompt-text">
+              Find all&nbsp;<strong style={{color:'var(--gold)',fontSize:'1.6rem'}}>{chordDisplay}</strong>&nbsp;triads
+            </div>
+            <div style={{fontFamily:'DM Mono',fontSize:'0.72rem',color:'var(--text-muted)',marginTop:6}}>
+              {foundTriadsThisChord.length}/{validTriadsForChord.length} triads found · click 3 notes to form a triad
+            </div>
+          </div>
+        )}
+        <div className={`feedback-msg ${feedback||''}`}>
+          {feedback==='correct' && '✓ Triad found!'}
+          {feedback==='wrong' && '✗ Not a valid ' + chordDisplay + ' triad'}
+        </div>
+      </div>
+
+      <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',width:'100%',maxWidth:600}}>
+        <div className="progress-bar-wrap" style={{marginBottom:0}}>
+          <div className="progress-label">
+            <span>String set {setIdx+1}/{stringSets.length} · {stringLabels}</span>
+            <span>{chordSetsCompletedThisSet}/{CHORD_SETS_PER_STRINGSET} triad sets</span>
+          </div>
+          <div className="progress-track">
+            <div className="progress-fill" style={{width:`${(chordSetsCompletedThisSet/CHORD_SETS_PER_STRINGSET)*100}%`}}/>
+          </div>
+        </div>
+        <div className="progress-bar-wrap" style={{marginBottom:0}}>
+          <div className="progress-label"><span>Total triad sets</span><span>{totalChordSetsCompleted}/{TOTAL_CHORD_SETS}</span></div>
+          <div className="progress-track">
+            <div className="progress-fill" style={{width:`${(totalChordSetsCompleted/TOTAL_CHORD_SETS)*100}%`}}/>
+          </div>
+        </div>
+      </div>
+
+      <div className="stats-row">
+        <span><span className="stat-label">time </span><span className="stat-val">{time}s</span></span>
+        <span style={{fontFamily:'DM Mono',fontSize:'0.68rem',color:'var(--text-muted)'}}>click 3 notes on the highlighted strings · Esc clears marks</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
+   GAME MODE 5: FREE LEARNING
 ═══════════════════════════════════════ */
 function FreeLearn({ onBack, tweaks }) {
   const totalFrets = tweaks.frets;
@@ -1101,7 +1410,7 @@ function FreeLearn({ onBack, tweaks }) {
 }
 
 /* ═══════════════════════════════════════
-   GAME MODE 5: NOTE LIST
+   GAME MODE 6: NOTE LIST
 ═══════════════════════════════════════ */
 function NoteListGame({ onBack, tweaks }) {
   const [notes, setNotes] = useState(() => shuffleArr(CHROMATIC));
@@ -1143,7 +1452,7 @@ function NoteListGame({ onBack, tweaks }) {
 /* ═══════════════════════════════════════
    STATS VIEW
 ═══════════════════════════════════════ */
-const MODE_LABELS = { random: 'Random Note', find: 'Find Notes', chord: 'Chords' };
+const MODE_LABELS = { random: 'Random Note', find: 'Find Notes', chord: 'Chords', triads: 'Triads' };
 
 function ProgressGraph({ mode, stats }) {
   const data = stats.filter(s => s.mode === mode);
@@ -1228,7 +1537,7 @@ function StatsView({ onBack }) {
       </div>
 
       <div className="scale-row">
-        {['all','random','find','chord'].map(m => (
+        {['all','random','find','chord','triads'].map(m => (
           <button key={m} className={`scale-btn ${filter===m?'active':''}`}
             onClick={() => setFilter(m)}>
             {m === 'all' ? 'All' : MODE_LABELS[m]}
@@ -1247,7 +1556,7 @@ function StatsView({ onBack }) {
         </>}
       </div>
 
-      {(filter === 'all' ? ['random','find','chord'] : [filter]).map(m => {
+      {(filter === 'all' ? ['random','find','chord','triads'] : [filter]).map(m => {
         const modeData = stats.filter(s => s.mode === m);
         if (modeData.length < 2) return null;
         return (
@@ -1291,6 +1600,7 @@ const MENU_ITEMS = [
   { id:'random',  label:'Guess a random note' },
   { id:'find',    label:'Find notes in fret sets' },
   { id:'chord',   label:'Identify Chords' },
+  { id:'triads',  label:'Find triads on string sets' },
   { id:'free',    label:'Free learning — explore the fretboard' },
   { id:'notes',   label:'Simple random note list' },
   { id:'stats',   label:'View session stats & progress' },
@@ -1306,7 +1616,7 @@ function Menu({ onSelect }) {
       else if (e.key==='Enter') onSelect(MENU_ITEMS[active].id);
       else {
         const n = parseInt(e.key);
-        if (n>=1&&n<=5) onSelect(MENU_ITEMS[n-1].id);
+        if (n>=1&&n<=6) onSelect(MENU_ITEMS[n-1].id);
       }
     }
     window.addEventListener('keydown', onKey);
@@ -1319,7 +1629,7 @@ function Menu({ onSelect }) {
       <div className="menu-tagline">guitar fretboard trainer</div>
       <div className="menu-divider"/>
       <ul className="menu-list">
-        {MENU_ITEMS.slice(0, 5).map((item, i) => (
+        {MENU_ITEMS.slice(0, 6).map((item, i) => (
           <li key={item.id}
             className={`menu-item ${i===active?'active':''}`}
             onClick={() => onSelect(item.id)}
@@ -1331,18 +1641,18 @@ function Menu({ onSelect }) {
       </ul>
       <div style={{width:60,height:1,background:'linear-gradient(90deg,transparent,var(--border),transparent)',margin:'16px auto'}}/>
       <ul className="menu-list">
-        {MENU_ITEMS.slice(5).map((item, i) => (
+        {MENU_ITEMS.slice(6).map((item, i) => (
           <li key={item.id}
-            className={`menu-item ${i+5===active?'active':''}`}
+            className={`menu-item ${i+6===active?'active':''}`}
             style={{justifyContent:'center'}}
             onClick={() => onSelect(item.id)}
-            onMouseEnter={() => setActive(i+5)}>
+            onMouseEnter={() => setActive(i+6)}>
             <span className="menu-label">{item.label}</span>
           </li>
         ))}
       </ul>
       <div className="menu-hint">
-        <span>↑↓</span> navigate &nbsp; <span>Enter</span> select &nbsp; <span>1–5</span> quick select
+        <span>↑↓</span> navigate &nbsp; <span>Enter</span> select &nbsp; <span>1–6</span> quick select
       </div>
 
       <div className="amp-panel">
@@ -1545,6 +1855,7 @@ function App() {
       {mode==='random' && <RandomNoteGame onBack={back} tweaks={tweaks}/>}
       {mode==='find' && <FindNotesGame onBack={back} tweaks={tweaks}/>}
       {mode==='chord' && <ChordGame onBack={back} tweaks={tweaks}/>}
+      {mode==='triads' && <FindTriadsGame onBack={back} tweaks={tweaks}/>}
       {mode==='free' && <FreeLearn onBack={back} tweaks={tweaks}/>}
       {mode==='notes' && <NoteListGame onBack={back} tweaks={tweaks}/>}
       {mode==='stats' && <StatsView onBack={back}/>}

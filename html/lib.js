@@ -440,7 +440,7 @@ function getChordDifficulty(name) {
   return 'easy';
 }
 
-const DIFFICULTY_RANK = { easy: 0, medium: 1, hard: 2, pro: 2 };
+const DIFFICULTY_RANK = { easy: 0, medium: 1, hard: 2 };
 
 function isBasicBarreChord(chord) {
   const n = chord.name.toLowerCase();
@@ -456,13 +456,13 @@ function chordsForDifficulty(diff) {
   const rank = DIFFICULTY_RANK[diff] ?? 0;
   return CHORD_SHAPES.filter(c => {
     if (DIFFICULTY_RANK[getChordDifficulty(c.name)] > rank) return false;
-    if ((diff === 'hard' || diff === 'pro') && isBasicBarreChord(c)) return false;
+    if (diff === 'hard' && isBasicBarreChord(c)) return false;
     return true;
   });
 }
 
 function qualitiesForDifficulty(diff) {
-  if (diff === 'hard' || diff === 'pro') return CHORD_QUALITIES_HARD;
+  if (diff === 'hard') return CHORD_QUALITIES_HARD;
   if (diff === 'medium') return CHORD_QUALITIES_MEDIUM;
   return CHORD_QUALITIES_EASY;
 }

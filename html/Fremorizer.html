@@ -768,19 +768,26 @@ function ChordGame({ onBack, tweaks }) {
   const [intervals, setIntervals] = useState([]);
   const [intervalIdx, setIntervalIdx] = useState(0);
   const [solvedSymbols, setSolvedSymbols] = useState(new Set());
+  const [hintOpen, setHintOpen] = useState(false);
+  const [hintLevel, setHintLevel] = useState(1);      // # of hints revealed (1..N)
   const [time, startTimer, stopTimer] = useTimer();
   const inputRef = useRef(null);
 
   useEffect(() => { startTimer(); }, []);
   useEffect(() => { inputRef.current?.focus(); }, [ci, phase, intervalIdx]);
+  useEffect(() => { setHintOpen(false); setHintLevel(1); }, [ci, phase]);
   useEffect(() => {
     if (finished) saveResult({ mode: 'chord', timeSeconds: time, totalItems: CHORD_GOAL, avgPerItem: +(time/CHORD_GOAL).toFixed(2) });
   }, [finished]);
   useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onBack(); }
+    function onKey(e) {
+      if (e.key !== 'Escape') return;
+      if (hintOpen) setHintOpen(false);
+      else onBack();
+    }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [hintOpen]);
 
   if (isBass) return (
     <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:24}}>
@@ -865,6 +872,19 @@ function ChordGame({ onBack, tweaks }) {
     }
   }
 
+  // Skip current chord: reveal answer, mark as wrong, advance without scoring.
+  function handleSolve() {
+    setHintOpen(false);
+    setInput(chord.name);
+    setFeedback('wrong');
+    setTimeout(() => {
+      setFeedback(null); setInput('');
+      setCi(c => c + 1);
+      setPhase('naming');
+      setSolvedSymbols(new Set());
+    }, 1600);
+  }
+
   if (finished) return (
     <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:32}}>
       <div style={{fontSize:'clamp(2rem,5vw,3rem)',fontWeight:900,fontStyle:'italic',color:'var(--gold)',textShadow:'0 0 40px rgba(200,144,48,0.4)'}}>
@@ -886,8 +906,9 @@ function ChordGame({ onBack, tweaks }) {
   );
 
   // During interval phase: hide labels on unsolved dots, reveal note names on solved ones
+  const hideIv = (tweaks.chordIntervals || 'show') === 'hide';
   const markers = chord.positions.map(({s, f, iv}) => {
-    if (phase === 'naming') return { s, f, type:'interval', label: diff === 'pro' ? '' : iv };
+    if (phase === 'naming') return { s, f, type:'interval', label: hideIv ? '' : iv };
     const solved = solvedSymbols.has(iv);
     return {
       s, f,
@@ -897,6 +918,29 @@ function ChordGame({ onBack, tweaks }) {
   });
 
   const currentIv = phase === 'intervals' ? intervals[intervalIdx] : null;
+
+  // Hint helpers — derive root + quality from "<root> <quality>" name format.
+  const QUALITY_HINTS = {
+    'major':  'Major triad — bright, stable sound.',
+    'minor':  'Minor triad — darker, somber sound.',
+    '7':      'Dominant 7th — bluesy and unresolved.',
+    'maj7':   'Major 7th — jazzy and dreamy.',
+    'm7':     'Minor 7th — smooth and mellow.',
+    'sus2':   'Suspended 2nd — open, no 3rd.',
+    'sus4':   'Suspended 4th — open, no 3rd.',
+    'add9':   'Add 9 — major chord with an added 9th, no 7th.',
+    '9':      'Dominant 9th — extended dominant chord.',
+    '7#9':    'Dominant 7♯9 — the "Hendrix" chord.',
+  };
+  const chordParts = (() => {
+    // Names use both 'C major' (with space) and 'Bm7' / 'Bbsus2' (no space).
+    const m = chord.name.match(/^([A-G][#b]?)\s*(.+)$/);
+    return m ? { root: m[1], quality: m[2] } : { root: '?', quality: chord.name };
+  })();
+  const hintTexts = [
+    QUALITY_HINTS[chordParts.quality] || `Quality: ${chordParts.quality}`,
+    `The root's natural letter is ${chordParts.root[0]} (accidental hidden).`,
+  ];
 
   return (
     <div className="game-wrap">
@@ -923,6 +967,9 @@ function ChordGame({ onBack, tweaks }) {
                 placeholder="chord name…" disabled={feedback==='correct'}
                 autoComplete="off" spellCheck="false"/>
               <button className="submit-btn" onClick={submit}>Enter ↵</button>
+              <button className="submit-btn" onClick={() => setHintOpen(true)}
+                      title="Show hints" aria-label="Show hints"
+                      style={{padding:'10px 14px',fontSize:'0.95rem',fontWeight:700}}>?</button>
             </div>
           )}
           <div className={`feedback-msg ${feedback||''}`}>
@@ -975,6 +1022,48 @@ function ChordGame({ onBack, tweaks }) {
         <span><span className="stat-label">time </span><span className="stat-val">{time}s</span></span>
         <span><span className="stat-label">score </span><span className="stat-val good">{score}</span></span>
       </div>
+
+      {hintOpen && phase === 'naming' && (
+        <div onClick={() => setHintOpen(false)} style={{
+          position:'fixed', inset:0, background:'rgba(0,0,0,0.55)',
+          display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000,
+        }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background:'var(--bg)', border:'1px solid var(--gold-dim)',
+            padding:'22px 26px', borderRadius:6, minWidth:300, maxWidth:420,
+            fontFamily:'DM Mono, monospace', boxShadow:'0 10px 40px rgba(0,0,0,0.55)',
+          }}>
+            <div style={{fontSize:'0.72rem', color:'var(--gold)', letterSpacing:'0.18em',
+                         marginBottom:14, textTransform:'uppercase'}}>
+              Hints
+            </div>
+            <ol style={{margin:0, paddingLeft:18, fontSize:'0.85rem',
+                        color:'var(--text)', lineHeight:1.7}}>
+              {hintTexts.slice(0, hintLevel).map((h, i) =>
+                <li key={i} style={{marginBottom:6}}>{h}</li>
+              )}
+            </ol>
+            <div style={{display:'flex', gap:10, marginTop:20,
+                         justifyContent:'space-between', flexWrap:'wrap'}}>
+              {hintLevel < hintTexts.length ? (
+                <button className="submit-btn" onClick={() => setHintLevel(l => l + 1)}>
+                  Reveal another
+                </button>
+              ) : (
+                <span style={{fontSize:'0.7rem', color:'var(--text-muted)',
+                              alignSelf:'center'}}>All hints revealed</span>
+              )}
+              <div style={{display:'flex', gap:10}}>
+                <button className="submit-btn" onClick={() => setHintOpen(false)}>Close</button>
+                <button className="submit-btn" onClick={handleSolve}
+                        style={{borderColor:'var(--wrong)', color:'var(--wrong)'}}>
+                  Solve
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1679,6 +1768,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "theme": "vintage",
   "board": "rosewood",
   "chordDifficulty": "easy",
+  "chordIntervals": "show",
   "instrument": "guitar"
 }/*EDITMODE-END*/;
 
@@ -1687,7 +1777,14 @@ const TWEAKS_KEY = 'frem_tweaks';
 function loadTweaks() {
   try {
     const saved = JSON.parse(localStorage.getItem(TWEAKS_KEY));
-    return saved && typeof saved === 'object' ? { ...TWEAK_DEFAULTS, ...saved } : TWEAK_DEFAULTS;
+    if (!saved || typeof saved !== 'object') return TWEAK_DEFAULTS;
+    const merged = { ...TWEAK_DEFAULTS, ...saved };
+    // Migrate legacy 'pro' difficulty → 'hard' + hidden intervals.
+    if (merged.chordDifficulty === 'pro') {
+      merged.chordDifficulty = 'hard';
+      if (saved.chordIntervals == null) merged.chordIntervals = 'hide';
+    }
+    return merged;
   } catch { return TWEAK_DEFAULTS; }
 }
 
@@ -1789,7 +1886,7 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
               verticalAlign:'middle',userSelect:'none'}}>?</span>
         </div>
         <div className="tweak-options">
-          {['easy','medium','hard','pro'].map(d => (
+          {['easy','medium','hard'].map(d => (
             <button key={d} className={`tweak-opt ${tweaks.chordDifficulty===d?'active':''}`}
               onClick={() => setTweaks(t=>({...t,chordDifficulty:d}))}>{d}</button>
           ))}
@@ -1801,9 +1898,17 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
           <div><b>Easy</b> — major, minor, dominant 7th</div>
           <div><b>Medium</b> — + sus2, sus4, add9</div>
           <div><b>Hard</b> — + maj7, m7, 9th, 7#9</div>
-          <div><b>Pro</b> — same as hard, intervals hidden</div>
         </div>
       )}
+      <div className="tweak-row">
+        <div className="tweak-label">CHORD INTERVALS</div>
+        <div className="tweak-options">
+          {['show','hide'].map(v => (
+            <button key={v} className={`tweak-opt ${(tweaks.chordIntervals||'show')===v?'active':''}`}
+              onClick={() => setTweaks(t=>({...t,chordIntervals:v}))}>{v}</button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

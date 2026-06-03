@@ -267,12 +267,21 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
           interval: isMetal ? ['#082838', '#a0d8ff']
                   : isFunk  ? ['#2a0a3a', '#c890ff']
                   : ['#285870', '#90c8e8'],
+          // Free-learn scale roots — high contrast vs interval/pentatonic on every theme.
+          root:     isMetal ? ['#5a3818', '#ffd070']
+                  : isFunk  ? ['#5a2a18', '#ffd060']
+                  :           ['#7a5018', '#ffe890'],
+          // Free-learn pentatonic tones — green family, distinct from blue interval.
+          pentatonic: isMetal ? ['#0a4830', '#90f0b0']
+                    : isFunk  ? ['#1a3a08', '#b8f070']
+                    :           ['#2a5828', '#a0d878'],
         };
         const [bg, fg] = colors[m.type] || colors.question;
         const label = m.label ?? '?';
         const small = label.length > 2;
+        const glow = m.type === 'question' || m.type === 'root';
         return (
-          <g key={i} filter={m.type==='question' ? "url(#glow)":undefined}>
+          <g key={i} filter={glow ? "url(#glow)" : undefined}>
             <circle cx={mcx} cy={mcy} r={13} fill={bg} stroke={fg} strokeWidth="1.5" opacity={m.opacity ?? 0.95}/>
             {label && <text x={mcx} y={mcy+4} textAnchor="middle"
               fill={fg} fontSize={small?8:11}
@@ -1365,6 +1374,12 @@ function FreeLearn({ onBack, tweaks }) {
     major: MAJOR_SCALE, minor: MINOR_SCALE,
     'pent.maj': PENTATONIC_MAJOR, 'pent.min': PENTATONIC_MINOR
   }[scaleType])) : null;
+  // When a full major/minor scale is shown, also compute its pentatonic subset
+  // so we can visually distinguish the "safe" pentatonic tones from the rest.
+  // Pure pentatonic modes treat every scale tone as pentatonic.
+  const pentatonicSet = scaleType ? new Set(scaleNotes(scaleRoot,
+    scaleType === 'minor' || scaleType === 'pent.min' ? PENTATONIC_MINOR : PENTATONIC_MAJOR
+  )) : null;
 
   function handleCellClick(s, f) {
     const key = `${s}-${f}`;
@@ -1431,8 +1446,10 @@ function FreeLearn({ onBack, tweaks }) {
     for(let s=0;s<nStrings;s++) for(let f=1;f<=totalFrets;f++) {
       const n = noteAt(s,f,instrument);
       if (scaleSet.has(n) && !revealed[`${s}-${f}`]) {
-        const isRoot = n===scaleRoot;
-        scaleMarkers.push({s,f,type:isRoot?'question':'interval',label:n});
+        const isRoot = n === scaleRoot;
+        const isPent = pentatonicSet && pentatonicSet.has(n);
+        const type = isRoot ? 'root' : isPent ? 'pentatonic' : 'interval';
+        scaleMarkers.push({ s, f, type, label: n });
       }
     }
   }
@@ -1487,6 +1504,27 @@ function FreeLearn({ onBack, tweaks }) {
         ))}
         <button className="scale-btn" onClick={()=>setRevealed({})}>clear</button>
       </div>
+
+      {scaleSet && (() => {
+        const t = tweaks.theme;
+        const swatch = {
+          root:       t === 'metal' ? '#ffd070' : t === 'funk' ? '#ffd060' : '#ffe890',
+          pentatonic: t === 'metal' ? '#90f0b0' : t === 'funk' ? '#b8f070' : '#a0d878',
+          interval:   t === 'metal' ? '#a0d8ff' : t === 'funk' ? '#c890ff' : '#90c8e8',
+        };
+        const dot = c => ({display:'inline-block',width:9,height:9,borderRadius:'50%',
+                           background:c,marginRight:6,verticalAlign:'middle',
+                           boxShadow:`0 0 6px ${c}88`});
+        const isPureP = scaleType === 'pent.maj' || scaleType === 'pent.min';
+        return (
+          <div className="free-legend" style={{justifyContent:'center'}}>
+            <span><span style={dot(swatch.root)}/>root</span>
+            {!isPureP && <span><span style={dot(swatch.pentatonic)}/>pentatonic</span>}
+            {!isPureP && <span><span style={dot(swatch.interval)}/>diatonic</span>}
+            {isPureP && <span><span style={dot(swatch.pentatonic)}/>pentatonic tones</span>}
+          </div>
+        );
+      })()}
 
       <div className="free-legend">
         <span><span>↑↓←→</span> / hjkl: move</span>
@@ -1600,14 +1638,41 @@ function ProgressGraph({ mode, stats }) {
 }
 
 function StatsView({ onBack }) {
-  const [stats] = useState(loadStats);
+  const [stats, setStats] = useState(loadStats);
   const [filter, setFilter] = useState('all');
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onBack(); }
+    function onKey(e) {
+      if (e.key !== 'Escape') return;
+      if (confirmReset) setConfirmReset(false);
+      else onBack();
+    }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [confirmReset]);
+
+  // Auto-cancel the reset confirm if the user doesn't follow through.
+  useEffect(() => {
+    if (!confirmReset) return;
+    const t = setTimeout(() => setConfirmReset(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirmReset]);
+
+  function persist(next) {
+    setStats(next);
+    localStorage.setItem(STATS_KEY, JSON.stringify(next));
+  }
+
+  function removeEntry(ts) {
+    persist(stats.filter(s => s.timestamp !== ts));
+  }
+
+  function resetAll() {
+    if (!confirmReset) { setConfirmReset(true); return; }
+    persist([]);
+    setConfirmReset(false);
+  }
 
   const filtered = filter === 'all' ? stats : stats.filter(s => s.mode === filter);
   const recent = [...filtered].reverse().slice(0, 20);
@@ -1632,6 +1697,15 @@ function StatsView({ onBack }) {
             {m === 'all' ? 'All' : MODE_LABELS[m]}
           </button>
         ))}
+        {stats.length > 0 && (
+          <button className="scale-btn"
+            onClick={resetAll}
+            style={{marginLeft:'auto',
+                    borderColor: confirmReset ? 'var(--wrong)' : undefined,
+                    color: confirmReset ? 'var(--wrong)' : undefined}}>
+            {confirmReset ? 'click again to confirm' : 'reset all'}
+          </button>
+        )}
       </div>
 
       <div style={{display:'flex',gap:32,flexWrap:'wrap',justifyContent:'center',
@@ -1666,14 +1740,23 @@ function StatsView({ onBack }) {
         </div>
       ) : (
         <div style={{width:'100%',display:'flex',flexDirection:'column',gap:0}}>
-          {recent.map((s, i) => (
-            <div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+          {recent.map(s => (
+            <div key={s.timestamp} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
               padding:'8px 12px',borderBottom:'1px solid var(--border)',
               fontFamily:'DM Mono',fontSize:'0.72rem'}}>
               <span style={{color:'var(--text-muted)',minWidth:120}}>{formatDate(s.timestamp)}</span>
               <span style={{color:'var(--gold-dim)'}}>{MODE_LABELS[s.mode]}</span>
               <span style={{color:'var(--text-dim)'}}>{s.timeSeconds}s</span>
               <span style={{color:'var(--text-dim)'}}>{s.avgPerItem.toFixed(1)}s/item</span>
+              <button onClick={() => removeEntry(s.timestamp)}
+                aria-label="Remove this entry" title="Remove this entry"
+                style={{background:'transparent',border:'none',cursor:'pointer',
+                        color:'var(--text-muted)',fontSize:'0.95rem',lineHeight:1,
+                        padding:'2px 6px',marginLeft:6,borderRadius:3}}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--wrong)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>
+                ×
+              </button>
             </div>
           ))}
         </div>

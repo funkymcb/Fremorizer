@@ -1582,6 +1582,8 @@ function NoteListGame({ onBack, tweaks }) {
 const MODE_LABELS = { random: 'Random Note', find: 'Find Notes', chord: 'Chords', triads: 'Triads' };
 
 function ProgressGraph({ mode, stats }) {
+  // Hooks must be called unconditionally before any early return.
+  const [hover, setHover] = useState(null);
   const data = stats.filter(s => s.mode === mode);
   if (data.length < 2) return null;
   const W = 480, H = 120, PX = 40, PY = 16;
@@ -1593,7 +1595,6 @@ function ProgressGraph({ mode, stats }) {
     avg: d.avgPerItem,
   }));
   const polyline = points.map(p => `${p.x},${p.y}`).join(' ');
-  const [hover, setHover] = useState(null);
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{width:'100%',maxWidth:W}}>
       {[0.25,0.5,0.75].map(t => (
@@ -1659,18 +1660,20 @@ function StatsView({ onBack }) {
     return () => clearTimeout(t);
   }, [confirmReset]);
 
-  function persist(next) {
-    setStats(next);
-    localStorage.setItem(STATS_KEY, JSON.stringify(next));
-  }
-
   function removeEntry(ts) {
-    persist(stats.filter(s => s.timestamp !== ts));
+    setStats(prev => {
+      const next = prev.filter(s => s.timestamp !== ts);
+      localStorage.setItem(STATS_KEY, JSON.stringify(next));
+      return next;
+    });
   }
 
   function resetAll() {
     if (!confirmReset) { setConfirmReset(true); return; }
-    persist([]);
+    setStats(() => {
+      localStorage.setItem(STATS_KEY, JSON.stringify([]));
+      return [];
+    });
     setConfirmReset(false);
   }
 
@@ -1697,15 +1700,6 @@ function StatsView({ onBack }) {
             {m === 'all' ? 'All' : MODE_LABELS[m]}
           </button>
         ))}
-        {stats.length > 0 && (
-          <button className="scale-btn"
-            onClick={resetAll}
-            style={{marginLeft:'auto',
-                    borderColor: confirmReset ? 'var(--wrong)' : undefined,
-                    color: confirmReset ? 'var(--wrong)' : undefined}}>
-            {confirmReset ? 'click again to confirm' : 'reset all'}
-          </button>
-        )}
       </div>
 
       <div style={{display:'flex',gap:32,flexWrap:'wrap',justifyContent:'center',
@@ -1713,9 +1707,9 @@ function StatsView({ onBack }) {
         <span><span style={{color:'var(--text-muted)'}}>sessions </span>{filtered.length}</span>
         {filtered.length > 0 && <>
           <span><span style={{color:'var(--text-muted)'}}>best avg </span>
-            {Math.min(...filtered.map(s=>s.avgPerItem)).toFixed(1)}s</span>
+            {Math.min(...filtered.map(s=>s.avgPerItem)).toFixed(2)}s</span>
           <span><span style={{color:'var(--text-muted)'}}>last avg </span>
-            {filtered[filtered.length-1].avgPerItem.toFixed(1)}s</span>
+            {filtered[filtered.length-1].avgPerItem.toFixed(2)}s</span>
         </>}
       </div>
 
@@ -1738,7 +1732,24 @@ function StatsView({ onBack }) {
           textAlign:'center',padding:'32px 0'}}>
           No sessions yet. Complete a game to see stats here.
         </div>
-      ) : (
+      ) : (<>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+          width:'100%',marginTop:8,paddingBottom:6,
+          borderBottom:'1px solid var(--border)'}}>
+          <span style={{fontFamily:'DM Mono',fontSize:'0.7rem',
+            color:'var(--text-muted)',letterSpacing:'0.1em',textTransform:'uppercase'}}>
+            Recent sessions
+          </span>
+          {stats.length > 0 && (
+            <button className="scale-btn"
+              onClick={resetAll}
+              style={{fontSize:'0.65rem',padding:'4px 10px',
+                      borderColor: confirmReset ? 'var(--wrong)' : undefined,
+                      color: confirmReset ? 'var(--wrong)' : undefined}}>
+              {confirmReset ? 'click again to confirm' : 'reset all'}
+            </button>
+          )}
+        </div>
         <div style={{width:'100%',display:'flex',flexDirection:'column',gap:0}}>
           {recent.map(s => (
             <div key={s.timestamp} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
@@ -1747,7 +1758,7 @@ function StatsView({ onBack }) {
               <span style={{color:'var(--text-muted)',minWidth:120}}>{formatDate(s.timestamp)}</span>
               <span style={{color:'var(--gold-dim)'}}>{MODE_LABELS[s.mode]}</span>
               <span style={{color:'var(--text-dim)'}}>{s.timeSeconds}s</span>
-              <span style={{color:'var(--text-dim)'}}>{s.avgPerItem.toFixed(1)}s/item</span>
+              <span style={{color:'var(--text-dim)'}}>{s.avgPerItem.toFixed(2)}s/item</span>
               <button onClick={() => removeEntry(s.timestamp)}
                 aria-label="Remove this entry" title="Remove this entry"
                 style={{background:'transparent',border:'none',cursor:'pointer',
@@ -1760,7 +1771,7 @@ function StatsView({ onBack }) {
             </div>
           ))}
         </div>
-      )}
+      </>)}
     </div>
   );
 }

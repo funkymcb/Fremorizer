@@ -542,11 +542,37 @@ function RandomNoteGame({ onBack, tweaks }) {
     if (!arr.some(Boolean)) arr = arr.map(() => true); // safety net
     return arr;
   });
+  const FRET_BANDS = [[1,3],[4,6],[7,9],[10,12]];
+  const [enabledFretSets] = useState(() => {
+    const raw = tweaks.randomGameFretSets || [];
+    let arr = Array.from({length:4}, (_, i) => raw[i] !== false);
+    if (!arr.some(Boolean)) arr = arr.map(() => true); // safety net
+    return arr;
+  });
   const [queue, setQueue] = useState(() => {
+    function inEnabledBand(f) {
+      for (let i = 0; i < FRET_BANDS.length; i++) {
+        if (!enabledFretSets[i]) continue;
+        const [lo, hi] = FRET_BANDS[i];
+        if (f >= lo && f <= hi) return true;
+      }
+      return false;
+    }
     const q = [];
     for (let s = 0; s < nStrings; s++) {
       if (!enabledStrings[s]) continue;
-      for (let f = 1; f <= totalFrets; f++) q.push({s,f});
+      for (let f = 1; f <= totalFrets; f++) {
+        if (!inEnabledBand(f)) continue;
+        q.push({s,f});
+      }
+    }
+    // If the user disabled every band that fits within totalFrets, fall back
+    // to asking every fret in totalFrets so the game can still run.
+    if (q.length === 0) {
+      for (let s = 0; s < nStrings; s++) {
+        if (!enabledStrings[s]) continue;
+        for (let f = 1; f <= totalFrets; f++) q.push({s,f});
+      }
     }
     return shuffleArr(q);
   });
@@ -566,7 +592,7 @@ function RandomNoteGame({ onBack, tweaks }) {
   useEffect(() => { if (!feedback) inputRef.current?.focus(); }, [feedback]);
   useEffect(() => { inputRef.current?.focus(); taskStartRef.current = Date.now(); }, [qi]);
   useEffect(() => {
-    if (finished) saveResult({ mode: 'random', timeSeconds: time, totalItems: total, avgPerItem: +(time/total).toFixed(2), strings: enabledStrings, instrument });
+    if (finished) saveResult({ mode: 'random', timeSeconds: time, totalItems: total, avgPerItem: +(time/total).toFixed(2), strings: enabledStrings, fretSets: enabledFretSets, instrument });
   }, [finished]);
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onBack(); }
@@ -1855,29 +1881,66 @@ function StatsView({ onBack }) {
             </button>
           )}
         </div>
+        {recent.some(s => s.mode === 'random') && (
+          <div style={{fontFamily:'DM Mono',fontSize:'0.65rem',color:'var(--text-muted)',
+            display:'flex',gap:14,alignItems:'center',flexWrap:'wrap',
+            padding:'6px 12px 4px',letterSpacing:'0.04em'}}>
+            <span style={{display:'inline-flex',gap:6,alignItems:'center'}}>
+              <span style={{display:'inline-flex',gap:2}}>
+                {[0,1,2,3,4,5].map(i => (
+                  <span key={i} style={{width:6,height:6,borderRadius:'50%',
+                    background:'var(--gold)',border:'1px solid var(--gold)'}}/>
+                ))}
+              </span>
+              strings (1 = high → N = low)
+            </span>
+            <span style={{display:'inline-flex',gap:6,alignItems:'center'}}>
+              <span style={{display:'inline-flex',gap:2}}>
+                {[0,1,2,3].map(i => (
+                  <span key={i} style={{width:10,height:5,borderRadius:1,
+                    background:'var(--gold)',border:'1px solid var(--gold)'}}/>
+                ))}
+              </span>
+              fret sets (1-3 · 4-6 · 7-9 · 10-12)
+            </span>
+            <span>filled = active</span>
+          </div>
+        )}
         <div style={{width:'100%',display:'flex',flexDirection:'column',gap:0}}>
           {recent.map(s => (
             <div key={s.timestamp} style={{display:'flex',justifyContent:'space-between',alignItems:'center',
               padding:'8px 12px',borderBottom:'1px solid var(--border)',
               fontFamily:'DM Mono',fontSize:'0.72rem'}}>
               <span style={{color:'var(--text-muted)',minWidth:120}}>{formatDate(s.timestamp)}</span>
-              <span style={{color:'var(--gold-dim)',display:'inline-flex',alignItems:'center',gap:6}}>
+              <span style={{color:'var(--gold-dim)',display:'inline-flex',alignItems:'center',gap:8}}>
                 {MODE_LABELS[s.mode]}
                 {s.mode === 'random' && (() => {
-                  // Legacy entries lack `strings`; assume all-on, length from instrument (default guitar).
-                  const fallback = Array(s.instrument === 'bass' ? 4 : 6).fill(true);
-                  const dots = s.strings || fallback;
-                  const onList = dots.map((on,i) => on ? (i+1) : null).filter(Boolean).join(',');
-                  return (
+                  // Legacy entries lack `strings`/`fretSets`; assume all-on.
+                  const stringFallback = Array(s.instrument === 'bass' ? 4 : 6).fill(true);
+                  const dots = s.strings || stringFallback;
+                  const onStrings = dots.map((on,i) => on ? (i+1) : null).filter(Boolean).join(',');
+                  const bandLabels = ['1-3','4-6','7-9','10-12'];
+                  const bars = s.fretSets || [true,true,true,true];
+                  const onBands = bars.map((on,i) => on ? bandLabels[i] : null).filter(Boolean).join(',');
+                  const legacy = !s.strings && !s.fretSets ? ' (legacy, assumed)' : '';
+                  return (<>
                     <span style={{display:'inline-flex',gap:2}}
-                      title={`Active strings: ${onList}${s.strings ? '' : ' (legacy, assumed)'}`}>
+                      title={`Active strings: ${onStrings}${legacy}`}>
                       {dots.map((on, i) => (
                         <span key={i} style={{width:6,height:6,borderRadius:'50%',
                           background: on ? 'var(--gold)' : 'transparent',
                           border:`1px solid ${on ? 'var(--gold)' : 'var(--text-muted)'}`}}/>
                       ))}
                     </span>
-                  );
+                    <span style={{display:'inline-flex',gap:2}}
+                      title={`Active fret sets: ${onBands}${legacy}`}>
+                      {bars.map((on, i) => (
+                        <span key={i} style={{width:10,height:5,borderRadius:1,
+                          background: on ? 'var(--gold)' : 'transparent',
+                          border:`1px solid ${on ? 'var(--gold)' : 'var(--text-muted)'}`}}/>
+                      ))}
+                    </span>
+                  </>);
                 })()}
               </span>
               <span style={{color:'var(--text-dim)'}}>{s.timeSeconds}s</span>
@@ -1987,7 +2050,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "chordDifficulty": "easy",
   "chordIntervals": "show",
   "instrument": "guitar",
-  "randomGameStrings": [true, true, true, true, true, true]
+  "randomGameStrings": [true, true, true, true, true, true],
+  "randomGameFretSets": [true, true, true, true]
 }/*EDITMODE-END*/;
 
 const TWEAKS_KEY = 'frem_tweaks';
@@ -2112,6 +2176,28 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
                   return {...t, randomGameStrings: next};
                 })}>
                 {idx+1}:{note}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="tweak-row">
+        <div className="tweak-label">RANDOM NOTE GAME FRET SETS</div>
+        <div className="tweak-options">
+          {[[1,3],[4,6],[7,9],[10,12]].map(([lo,hi], idx) => {
+            const arr = tweaks.randomGameFretSets || [];
+            const active = arr[idx] !== false;
+            return (
+              <button key={idx} className={`tweak-opt ${active?'active':''}`}
+                title={`Frets ${lo}–${hi}`}
+                onClick={() => setTweaks(t => {
+                  const next = Array.from({length:4}, (_, i) => (t.randomGameFretSets || [])[i] !== false);
+                  // Keep at least one fret set enabled.
+                  if (active && next.filter(Boolean).length <= 1) return t;
+                  next[idx] = !active;
+                  return {...t, randomGameFretSets: next};
+                })}>
+                {lo}-{hi}
               </button>
             );
           })}

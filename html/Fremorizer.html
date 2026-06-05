@@ -277,14 +277,21 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
                     :           ['#2a5828', '#a0d878'],
         };
         const [bg, fg] = colors[m.type] || colors.question;
+        const fill = m.fill || bg;
+        const stroke = m.stroke || fg;
+        const textColor = m.textColor || fg;
         const label = m.label ?? '?';
         const small = label.length > 2;
         const glow = m.type === 'question' || m.type === 'root';
         return (
-          <g key={i} filter={glow ? "url(#glow)" : undefined}>
-            <circle cx={mcx} cy={mcy} r={13} fill={bg} stroke={fg} strokeWidth="1.5" opacity={m.opacity ?? 0.95}/>
+          <g key={i}
+             filter={glow ? "url(#glow)" : undefined}
+             onMouseEnter={m.onMouseEnter}
+             onMouseLeave={m.onMouseLeave}
+             style={m.onMouseEnter ? {cursor:'pointer'} : undefined}>
+            <circle cx={mcx} cy={mcy} r={13} fill={fill} stroke={stroke} strokeWidth="1.5" opacity={m.opacity ?? 0.95}/>
             {label && <text x={mcx} y={mcy+4} textAnchor="middle"
-              fill={fg} fontSize={small?8:11}
+              fill={textColor} fontSize={small?8:11}
               fontFamily="'DM Mono',monospace" fontWeight="600">{label}</text>}
           </g>
         );
@@ -441,10 +448,84 @@ function loadStats() {
   catch { return []; }
 }
 
-function saveResult({ mode, timeSeconds, totalItems, avgPerItem }) {
+function saveResult(record) {
   const stats = loadStats();
-  stats.push({ mode, timestamp: Date.now(), timeSeconds, totalItems, avgPerItem });
+  stats.push({ ...record, timestamp: Date.now() });
   localStorage.setItem(STATS_KEY, JSON.stringify(stats));
+}
+
+/* ═══════════════════════════════════════
+   FRETBOARD HEATMAP (post-game)
+═══════════════════════════════════════ */
+// Renders a colored Fretboard where each cell is shaded by how long it took
+// to resolve. Green = fastest, red = slowest, smooth HSL gradient in between.
+// `cellTimes` is a plain object keyed by "s-f" → seconds (float).
+function FretboardHeatmap({ cellTimes, totalFrets, instrument, noteStyle, boardType, theme }) {
+  const [hovered, setHovered] = useState(null);
+
+  const entries = Object.entries(cellTimes);
+  if (entries.length === 0) return null;
+  const times = entries.map(([,t]) => t);
+
+  // Rank-based color mapping: sort all times, give each unique time its rank,
+  // map rank → hue. This guarantees full green→red spread regardless of how
+  // the times are distributed (linear mapping gets too "green" when there's a
+  // slow outlier compressing everything else into the green half).
+  const sortedUnique = [...new Set(times)].sort((a, b) => a - b);
+  const rankByTime = new Map();
+  sortedUnique.forEach((t, i) => rankByTime.set(t, i));
+  const denom = Math.max(sortedUnique.length - 1, 1);
+  const tMin = sortedUnique[0];
+  const tMax = sortedUnique[sortedUnique.length - 1];
+
+  const markers = entries.map(([key, t]) => {
+    const [s, f] = key.split('-').map(Number);
+    const note = showNote(noteAt(s, f, instrument), noteStyle);
+    const k = rankByTime.get(t) / denom;   // 0 → 1
+    const hue = (1 - k) * 120;             // 120 (green) → 0 (red)
+    return {
+      s, f,
+      type: 'heatmap',
+      label: note,
+      fill:   `hsl(${hue},75%,45%)`,
+      stroke: `hsl(${hue},80%,25%)`,
+      textColor: '#fff',
+      onMouseEnter: () => setHovered({ key, note, t }),
+      onMouseLeave: () => setHovered(h => h?.key === key ? null : h),
+    };
+  });
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'center',width:'100%'}}>
+      <div style={{fontFamily:'DM Mono',fontSize:'0.7rem',color:'var(--text-muted)',
+        letterSpacing:'0.1em',textTransform:'uppercase'}}>
+        Heatmap — green = fastest, red = slowest
+      </div>
+      <div style={{fontFamily:'DM Mono',fontSize:'0.65rem',color:'var(--text-muted)',
+        display:'flex',gap:14,alignItems:'center'}}>
+        <span><span style={{display:'inline-block',width:9,height:9,borderRadius:'50%',
+          background:'hsl(120,75%,45%)',marginRight:6,verticalAlign:'middle'}}/>
+          {tMin.toFixed(2)}s
+        </span>
+        <span style={{width:120,height:8,borderRadius:4,
+          background:'linear-gradient(90deg,hsl(120,75%,45%),hsl(60,75%,45%),hsl(0,75%,45%))'}}/>
+        <span><span style={{display:'inline-block',width:9,height:9,borderRadius:'50%',
+          background:'hsl(0,75%,45%)',marginRight:6,verticalAlign:'middle'}}/>
+          {tMax.toFixed(2)}s
+        </span>
+      </div>
+      <div className="fretboard-wrap">
+        <Fretboard markers={markers} totalFrets={totalFrets} noteStyle={noteStyle}
+          boardType={boardType} theme={theme} instrument={instrument}/>
+      </div>
+      <div style={{fontFamily:'DM Mono',fontSize:'0.8rem',height:22,
+        color: hovered ? 'var(--gold)' : 'var(--text-muted)',letterSpacing:'0.05em'}}>
+        {hovered
+          ? <><strong>{hovered.note}</strong> — {hovered.t.toFixed(2)}s</>
+          : 'hover a note to see its exact time'}
+      </div>
+    </div>
+  );
 }
 
 /* ═══════════════════════════════════════
@@ -454,13 +535,22 @@ function RandomNoteGame({ onBack, tweaks }) {
   const totalFrets = tweaks.frets;
   const instrument = tweaks.instrument || 'guitar';
   const nStrings = stringsFor(instrument).length;
-  const total = nStrings * totalFrets;
   const [done, setDone] = useState(new Set());
+  const [enabledStrings] = useState(() => {
+    const raw = tweaks.randomGameStrings || [];
+    let arr = Array.from({length:nStrings}, (_, i) => raw[i] !== false);
+    if (!arr.some(Boolean)) arr = arr.map(() => true); // safety net
+    return arr;
+  });
   const [queue, setQueue] = useState(() => {
     const q = [];
-    for(let s=0;s<nStrings;s++) for(let f=1;f<=totalFrets;f++) q.push({s,f});
+    for (let s = 0; s < nStrings; s++) {
+      if (!enabledStrings[s]) continue;
+      for (let f = 1; f <= totalFrets; f++) q.push({s,f});
+    }
     return shuffleArr(q);
   });
+  const total = queue.length;
   const [qi, setQi] = useState(0);
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState(null);
@@ -469,12 +559,14 @@ function RandomNoteGame({ onBack, tweaks }) {
   const [time, startTimer, stopTimer] = useTimer();
   const inputRef = useRef(null);
   const [flashing, setFlashing] = useState(false);
+  const [cellTimes, setCellTimes] = useState({});
+  const taskStartRef = useRef(0);
 
-  useEffect(() => { startTimer(); }, []);
+  useEffect(() => { startTimer(); taskStartRef.current = Date.now(); }, []);
   useEffect(() => { if (!feedback) inputRef.current?.focus(); }, [feedback]);
-  useEffect(() => { inputRef.current?.focus(); }, [qi]);
+  useEffect(() => { inputRef.current?.focus(); taskStartRef.current = Date.now(); }, [qi]);
   useEffect(() => {
-    if (finished) saveResult({ mode: 'random', timeSeconds: time, totalItems: total, avgPerItem: +(time/total).toFixed(2) });
+    if (finished) saveResult({ mode: 'random', timeSeconds: time, totalItems: total, avgPerItem: +(time/total).toFixed(2), strings: enabledStrings, instrument });
   }, [finished]);
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onBack(); }
@@ -488,7 +580,10 @@ function RandomNoteGame({ onBack, tweaks }) {
   function handleAnswer(note) {
     if (!current) return;
     if (note === expected) {
-      const newDone = new Set(done); newDone.add(`${current.s}-${current.f}`);
+      const key = `${current.s}-${current.f}`;
+      const elapsed = (Date.now() - taskStartRef.current) / 1000;
+      setCellTimes(prev => ({ ...prev, [key]: elapsed }));
+      const newDone = new Set(done); newDone.add(key);
       setDone(newDone);
       setStreak(s => s+1);
       setFeedback('correct');
@@ -515,20 +610,22 @@ function RandomNoteGame({ onBack, tweaks }) {
   }
 
   if (finished) return (
-    <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:32}}>
+    <div className="game-wrap" style={{textAlign:'center',gap:32}}>
       <div style={{fontSize:'clamp(2rem,5vw,3rem)',fontWeight:900,fontStyle:'italic',color:'var(--gold)',textShadow:'0 0 40px rgba(200,144,48,0.4)'}}>
         All Clear!
       </div>
       <div style={{fontFamily:'DM Mono',fontSize:'0.85rem',color:'var(--text-dim)',letterSpacing:'0.1em'}}>
         You named every note on the fretboard
       </div>
-      <div style={{display:'flex',gap:40,justifyContent:'center',fontFamily:'DM Mono',fontSize:'0.8rem',color:'var(--text-dim)'}}>
+      <div style={{display:'flex',gap:40,justifyContent:'center',flexWrap:'wrap',fontFamily:'DM Mono',fontSize:'0.8rem',color:'var(--text-dim)'}}>
         <span><span style={{color:'var(--text-muted)'}}>time </span>{time}s</span>
         <span><span style={{color:'var(--text-muted)'}}>notes </span>{total}</span>
         <span><span style={{color:'var(--text-muted)'}}>best streak </span>{streak}</span>
         <span><span style={{color:'var(--text-muted)'}}>avg/note </span>{(time/total).toFixed(1)}s</span>
       </div>
       <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
+      <FretboardHeatmap cellTimes={cellTimes} totalFrets={totalFrets} instrument={instrument}
+        noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
       <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
         ← back to menu
       </button>
@@ -623,8 +720,12 @@ function FindNotesGame({ onBack, tweaks }) {
   const [setComplete, setSetComplete] = useState(false);
   const [finished, setFinished] = useState(false);
   const [time, startTimer, stopTimer] = useTimer();
+  const [cellTimes, setCellTimes] = useState({});
+  const taskStartRef = useRef(0);
 
-  useEffect(() => { startTimer(); }, []);
+  useEffect(() => { startTimer(); taskStartRef.current = Date.now(); }, []);
+  // Reset the per-target timer whenever a new target note appears.
+  useEffect(() => { taskStartRef.current = Date.now(); }, [noteQi, setIdx]);
   useEffect(() => {
     if (finished) saveResult({ mode: 'find', timeSeconds: time, totalItems: TOTAL_MODE2, avgPerItem: +(time/TOTAL_MODE2).toFixed(2) });
   }, [finished]);
@@ -643,6 +744,8 @@ function FindNotesGame({ onBack, tweaks }) {
     const key = `${s}-${f}`;
     if (foundInSet.has(key)) return;
     if (noteAt(s,f,instrument) === targetNote) {
+      const elapsed = (Date.now() - taskStartRef.current) / 1000;
+      setCellTimes(prev => ({ ...prev, [key]: elapsed }));
       const newFound = new Set(foundInSet); newFound.add(key);
       setFoundInSet(newFound);
       setTotalFound(t => t+1);
@@ -688,7 +791,7 @@ function FindNotesGame({ onBack, tweaks }) {
   const setFoundCount = foundInSet.size;
 
   if (finished) return (
-    <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:32}}>
+    <div className="game-wrap" style={{textAlign:'center',gap:32}}>
       <div style={{fontSize:'clamp(2rem,5vw,3rem)',fontWeight:900,fontStyle:'italic',color:'var(--gold)',textShadow:'0 0 40px rgba(200,144,48,0.4)'}}>
         All Clear!
       </div>
@@ -701,6 +804,8 @@ function FindNotesGame({ onBack, tweaks }) {
         <span><span style={{color:'var(--text-muted)'}}>avg/note </span>{(time/TOTAL_MODE2).toFixed(1)}s</span>
       </div>
       <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
+      <FretboardHeatmap cellTimes={cellTimes} totalFrets={12} instrument={instrument}
+        noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
       <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
         ← back to menu
       </button>
@@ -1756,7 +1861,25 @@ function StatsView({ onBack }) {
               padding:'8px 12px',borderBottom:'1px solid var(--border)',
               fontFamily:'DM Mono',fontSize:'0.72rem'}}>
               <span style={{color:'var(--text-muted)',minWidth:120}}>{formatDate(s.timestamp)}</span>
-              <span style={{color:'var(--gold-dim)'}}>{MODE_LABELS[s.mode]}</span>
+              <span style={{color:'var(--gold-dim)',display:'inline-flex',alignItems:'center',gap:6}}>
+                {MODE_LABELS[s.mode]}
+                {s.mode === 'random' && (() => {
+                  // Legacy entries lack `strings`; assume all-on, length from instrument (default guitar).
+                  const fallback = Array(s.instrument === 'bass' ? 4 : 6).fill(true);
+                  const dots = s.strings || fallback;
+                  const onList = dots.map((on,i) => on ? (i+1) : null).filter(Boolean).join(',');
+                  return (
+                    <span style={{display:'inline-flex',gap:2}}
+                      title={`Active strings: ${onList}${s.strings ? '' : ' (legacy, assumed)'}`}>
+                      {dots.map((on, i) => (
+                        <span key={i} style={{width:6,height:6,borderRadius:'50%',
+                          background: on ? 'var(--gold)' : 'transparent',
+                          border:`1px solid ${on ? 'var(--gold)' : 'var(--text-muted)'}`}}/>
+                      ))}
+                    </span>
+                  );
+                })()}
+              </span>
               <span style={{color:'var(--text-dim)'}}>{s.timeSeconds}s</span>
               <span style={{color:'var(--text-dim)'}}>{s.avgPerItem.toFixed(2)}s/item</span>
               <button onClick={() => removeEntry(s.timestamp)}
@@ -1863,7 +1986,8 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "board": "rosewood",
   "chordDifficulty": "easy",
   "chordIntervals": "show",
-  "instrument": "guitar"
+  "instrument": "guitar",
+  "randomGameStrings": [true, true, true, true, true, true]
 }/*EDITMODE-END*/;
 
 const TWEAKS_KEY = 'frem_tweaks';
@@ -1968,6 +2092,29 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
             <button key={s} className={`tweak-opt ${tweaks.noteStyle===s?'active':''}`}
               onClick={() => setTweaks(t=>({...t,noteStyle:s}))}>{s}</button>
           ))}
+        </div>
+      </div>
+      <div className="tweak-row">
+        <div className="tweak-label">RANDOM NOTE GAME STRINGS</div>
+        <div className="tweak-options">
+          {stringsFor(tweaks.instrument || 'guitar').map((note, idx) => {
+            const arr = tweaks.randomGameStrings || [];
+            const active = arr[idx] !== false;
+            return (
+              <button key={idx} className={`tweak-opt ${active?'active':''}`}
+                title={`String ${idx+1} — open ${note}`}
+                onClick={() => setTweaks(t => {
+                  const n = stringsFor(t.instrument || 'guitar').length;
+                  const next = Array.from({length:n}, (_, i) => (t.randomGameStrings || [])[i] !== false);
+                  // Keep at least one string enabled.
+                  if (active && next.filter(Boolean).length <= 1) return t;
+                  next[idx] = !active;
+                  return {...t, randomGameStrings: next};
+                })}>
+                {idx+1}:{note}
+              </button>
+            );
+          })}
         </div>
       </div>
       <div className="tweak-row">

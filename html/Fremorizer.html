@@ -65,9 +65,9 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
 
   // Inlays
   const inlayFill   = isVintage ? (isMaple ? 'rgba(60,40,20,0.35)'    : 'rgba(240,220,178,0.32)')
-                    : (isMaple  ? 'rgba(60,40,20,0.35)' : `rgba(${theme==='metal'?'0,200,255':'255,64,192'},0.18)`);
+                    : (isMaple  ? 'rgba(60,40,20,0.35)' : `rgba(${theme==='metal'?'120,224,255':'255,176,232'},0.42)`);
   const inlayStroke = isVintage ? (isMaple ? 'rgba(40,20,10,0.15)'    : 'rgba(240,220,178,0.12)')
-                    : (isMaple  ? 'rgba(40,20,10,0.15)' : `rgba(${theme==='metal'?'0,200,255':'255,64,192'},0.35)`);
+                    : (isMaple  ? 'rgba(40,20,10,0.15)' : `rgba(${theme==='metal'?'160,232,255':'255,200,240'},0.7)`);
 
   // Nut
   const nutTop      = isMaple ? '#f8f0e0' : (isVintage ? '#f0e0b0' : '#303438');
@@ -120,7 +120,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
           <stop offset="0%" stopColor={nutTop}/>
           <stop offset="100%" stopColor={nutBot}/>
         </linearGradient>
-        <filter id="glow">
+        <filter id="glow" x="-75%" y="-75%" width="250%" height="250%">
           <feGaussianBlur stdDeviation="3" result="blur"/>
           <feComposite in="SourceGraphic" in2="blur" operator="over"/>
         </filter>
@@ -142,27 +142,37 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
       {fretSet && (() => {
         const isMetal = theme === 'metal';
         const isFunk  = theme === 'funk';
-        const fillRgb   = isMetal ? '0,200,255' : isFunk ? '255,64,192' : '180,120,30';
-        const strokeRgb = isMetal ? '0,200,255' : isFunk ? '255,64,192' : '200,160,60';
-        const barRgb    = isMetal ? '0,200,255' : isFunk ? '200,255,32' : '200,160,60';
+        // On maple (light wood), bright/light colors wash out — use deeper, more saturated tones.
+        const fillRgb   = isMetal ? '0,200,255'
+                        : isFunk  ? (isMaple ? '170,20,120' : '255,64,192')
+                        :           (isMaple ? '120,60,10'  : '180,120,30');
+        const strokeRgb = isMetal ? '0,200,255'
+                        : isFunk  ? (isMaple ? '160,10,110' : '255,64,192')
+                        :           (isMaple ? '100,50,8'   : '200,160,60');
+        const barRgb    = isMetal ? '0,200,255'
+                        : isFunk  ? (isMaple ? '160,180,20' : '200,255,32')
+                        :           (isMaple ? '120,80,20'  : '200,160,60');
+        const fillA   = isMaple && !isMetal ? 0.22 : 0.13;
+        const strokeA = isMaple && !isMetal ? 0.85 : 0.55;
+        const barA    = isMaple && !isMetal ? 0.85 : 0.6;
         return (
         <>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={lastS*SH+SH*1.1}
-            fill={`rgba(${fillRgb},0.13)`} rx="2"/>
+            fill={`rgba(${fillRgb},${fillA})`} rx="2"/>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={lastS*SH+SH*1.1}
-            fill="none" stroke={`rgba(${strokeRgb},0.55)`} strokeWidth="1.5" rx="2"/>
+            fill="none" stroke={`rgba(${strokeRgb},${strokeA})`} strokeWidth="1.5" rx="2"/>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT - SH*0.55}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={3}
-            fill={`rgba(${barRgb},0.6)`} rx="1"/>
+            fill={`rgba(${barRgb},${barA})`} rx="1"/>
           <rect
             x={ML + (fretSet[0]-1)*FW} y={MT + lastS*SH + SH*0.55 - 3}
             width={(fretSet[1]-fretSet[0]+1)*FW} height={3}
-            fill={`rgba(${barRgb},0.6)`} rx="1"/>
+            fill={`rgba(${barRgb},${barA})`} rx="1"/>
         </>
         );
       })()}
@@ -285,6 +295,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
         const glow = m.type === 'question' || m.type === 'root';
         return (
           <g key={i}
+             className={m.type === 'question' ? 'marker-blink' : undefined}
              filter={glow ? "url(#glow)" : undefined}
              onMouseEnter={m.onMouseEnter}
              onMouseLeave={m.onMouseLeave}

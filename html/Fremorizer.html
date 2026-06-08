@@ -510,10 +510,14 @@ function useTimer() {
 ═══════════════════════════════════════ */
 const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
+// Rotate chromatic to start at A so the mobile keyboard reads A → G#
+// in a tidy 4×3 grid instead of the wobbly C-start wrap.
+const NOTE_KEYBOARD_ORDER = [...CHROMATIC.slice(9), ...CHROMATIC.slice(0, 9)];
+
 function NoteKeyboard({ onNote, disabled, noteStyle='both' }) {
   return (
-    <div className="note-keyboard">
-      {CHROMATIC.map(n => (
+    <div className="note-keyboard grid-12">
+      {NOTE_KEYBOARD_ORDER.map(n => (
         <button key={n} className="note-key" disabled={disabled}
           onClick={() => onNote(n)}>
           {showNote(n, noteStyle)}

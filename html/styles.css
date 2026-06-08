@@ -1092,6 +1092,15 @@ body {
   justify-content: center;
   max-width: 360px;
 }
+/* 12-note chromatic picker: 4 columns × 3 rows. Applied to the note variant
+   (mode 1, mode 3 intervals); chord-quality picker keeps the flex-wrap. */
+.note-keyboard.grid-12 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  width: 100%;
+  max-width: 280px;
+}
+.note-keyboard.grid-12 .note-key { min-width: 0; }
 .note-key {
   font-family: 'DM Mono', monospace;
   font-size: 0.9rem;

@@ -1215,11 +1215,11 @@ body {
   position: fixed;
   bottom: 24px; left: 24px;
   z-index: 400;
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 16px;
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 20px;
   border-radius: 999px;
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -1242,7 +1242,7 @@ body {
   opacity: 0.85;
 }
 .audio-cta-icon {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   line-height: 1;
   display: inline-block;
 }

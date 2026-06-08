@@ -54,9 +54,11 @@ const AUDIO = (() => {
   const cache = {};   // midi -> { L: AudioBuffer, R: AudioBuffer }
   const loading = {}; // midi -> Promise
 
-  function ensureCtx() {
+  function ensureCtx(resume = true) {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (ctx.state === 'suspended') ctx.resume();
+    // Only attempt to resume during actual playback. resume() before a user
+    // gesture is a no-op in Chrome/Safari and emits a console warning.
+    if (resume && ctx.state === 'suspended') ctx.resume();
     return ctx;
   }
 
@@ -78,7 +80,7 @@ const AUDIO = (() => {
     if (cache[midi]) return cache[midi];
     if (loading[midi]) return loading[midi];
     loading[midi] = (async () => {
-      const c = ensureCtx();
+      const c = ensureCtx(false);
       const fetchChan = async ch => {
         const res = await fetch(`${SAMPLE_PATH}${SAMPLE_LAYER}-${midi}${ch}.wav`);
         if (!res.ok) throw new Error(`missing sample ${midi}${ch}`);
@@ -132,6 +134,10 @@ const AUDIO = (() => {
       try { localStorage.setItem('frem_muted', state.muted ? '1' : '0'); } catch (e) {}
       if (!state.muted) preloadAll();
     },
+    // Eagerly fetch + decode every sample so the first note plays instantly.
+    // Safe to call before any user gesture — AudioContext stays suspended,
+    // decodeAudioData still works.
+    preload() { preloadAll(); },
     note(name, octave=4) { playMidi(midiFromName(name, octave)); },
     cell(s, f, instrument='guitar') {
       const arr = OPEN_MIDI[instrument] || OPEN_MIDI.guitar;
@@ -2408,6 +2414,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem(TWEAKS_KEY, JSON.stringify(tweaks));
   }, [tweaks]);
+
+  // Warm the sample cache on first render so the first note doesn't wait
+  // on network + decodeAudioData. Runs after paint so it never blocks UI.
+  useEffect(() => { AUDIO.preload(); }, []);
 
   // Apply theme + board to <html>
   useEffect(() => {

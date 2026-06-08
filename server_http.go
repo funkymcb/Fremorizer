@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"crypto/tls"
-	_ "embed"
+	"embed"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -25,6 +26,12 @@ var libJS []byte
 
 //go:embed html/favicon.ico
 var faviconBytes []byte
+
+// Strat samples — medium-velocity layer only (~11MB). Extend the glob to
+// embed gt1-*.wav / gt3-*.wav if SAMPLE_LAYER in the page is changed.
+//
+//go:embed html/assets/sounds/strat/gt2-*.wav
+var stratSamples embed.FS
 
 func serveHTTP(domain, addr string) {
 	if addr != "" {
@@ -162,6 +169,24 @@ func pageHandler() http.Handler {
 		h.Set("Cache-Control", "public, max-age=604800")
 		w.Write(faviconBytes)
 	})
+	mux.HandleFunc("/assets/sounds/strat/", func(w http.ResponseWriter, r *http.Request) {
+		// Only serve .wav files from the embedded sample bank; reject
+		// anything else (defense in depth, even though embed.FS is
+		// traversal-safe).
+		if !strings.HasSuffix(r.URL.Path, ".wav") {
+			http.NotFound(w, r)
+			return
+		}
+		data, err := stratSamples.ReadFile("html" + r.URL.Path)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		h := w.Header()
+		h.Set("Content-Type", "audio/wav")
+		h.Set("Cache-Control", "public, max-age=604800")
+		w.Write(data)
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
@@ -175,7 +200,7 @@ func pageHandler() http.Handler {
 				"script-src 'self' https://unpkg.com 'unsafe-inline' 'unsafe-eval'; "+
 				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
 				"font-src https://fonts.gstatic.com; "+
-				"connect-src 'none'; "+
+				"connect-src 'self'; "+
 				"img-src 'self'; "+
 				"frame-ancestors 'none';")
 		h.Set("Content-Type", "text/html; charset=utf-8")

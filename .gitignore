@@ -4,3 +4,5 @@
 host_key
 host_key.pub
 *.tape
+
+html/soundfont/

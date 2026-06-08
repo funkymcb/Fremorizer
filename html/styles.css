@@ -1209,3 +1209,71 @@ body {
 
 @keyframes markerBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
 .marker-blink { animation: markerBlink 1.3s ease-in-out infinite; }
+
+/* ── AUDIO MUTE/UNMUTE BUTTON ────────────────── */
+.audio-cta {
+  position: fixed;
+  bottom: 24px; left: 24px;
+  z-index: 400;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  border: 1.5px solid var(--gold);
+  background: linear-gradient(135deg, rgba(216,152,56,0.18), rgba(176,64,32,0.10));
+  color: var(--gold);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: transform 0.18s ease, box-shadow 0.25s ease, opacity 0.2s;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+}
+.audio-cta:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 6px 22px rgba(0,0,0,0.5), 0 0 18px rgba(216,152,56,0.45);
+}
+.audio-cta.muted {
+  border-color: var(--text-muted);
+  background: linear-gradient(135deg, rgba(120,80,40,0.18), rgba(40,20,10,0.10));
+  color: var(--text-dim);
+  opacity: 0.85;
+}
+.audio-cta-icon {
+  font-size: 1.05rem;
+  line-height: 1;
+  display: inline-block;
+}
+.audio-cta-label { white-space: nowrap; }
+
+[data-theme="metal"] .audio-cta {
+  background: linear-gradient(135deg, rgba(0,200,255,0.16), rgba(0,100,140,0.08));
+  font-family: 'Oswald', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+[data-theme="metal"] .audio-cta:hover {
+  box-shadow: 0 6px 22px rgba(0,0,0,0.6), 0 0 20px rgba(0,200,255,0.55);
+}
+[data-theme="metal"] .audio-cta.muted {
+  background: linear-gradient(135deg, rgba(40,60,80,0.20), rgba(8,16,24,0.10));
+  border-color: var(--text-muted);
+  color: var(--text-dim);
+}
+
+[data-theme="funk"] .audio-cta {
+  background: linear-gradient(135deg, rgba(255,64,192,0.20), rgba(160,64,255,0.12));
+  color: #ffe8f5;
+  font-family: 'Bungee', sans-serif;
+  letter-spacing: 0.06em;
+}
+[data-theme="funk"] .audio-cta:hover {
+  box-shadow: 0 6px 22px rgba(0,0,0,0.6), 0 0 20px rgba(255,64,192,0.55);
+}
+[data-theme="funk"] .audio-cta.muted {
+  background: linear-gradient(135deg, rgba(80,40,60,0.20), rgba(40,16,30,0.10));
+  border-color: var(--text-muted);
+  color: var(--text-dim);
+}

@@ -2198,6 +2198,14 @@ function Menu({ onSelect }) {
   );
 }
 
+function ContactFooter() {
+  return (
+    <div className="contact-footer">
+      contact · <a href="mailto:admin@fremorizer.com">admin@fremorizer.com</a>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════
    TWEAKS
 ═══════════════════════════════════════ */
@@ -2477,6 +2485,7 @@ function App() {
         <span className="audio-cta-icon">{muted ? '🔇' : '🔊'}</span>
         <span className="audio-cta-label">{muted ? 'Muted' : 'Sound'}</span>
       </button>
+      <ContactFooter/>
     </>
   );
 }

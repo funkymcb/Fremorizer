@@ -790,6 +790,34 @@ body {
 }
 .menu-hint span { color: var(--gold-dim); }
 
+/* Global contact footer — pinned bottom-center, sits above corner CTAs */
+.contact-footer {
+  position: fixed;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  z-index: 300;
+  font-family: 'DM Mono', monospace;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 0.12em;
+  text-align: center;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.contact-footer a {
+  color: var(--gold-dim);
+  text-decoration: none;
+  transition: color 0.15s;
+  pointer-events: auto;
+}
+.contact-footer a:hover { color: var(--gold); }
+/* On narrow screens the corner CTAs (24px bottom) get close — float the
+   footer up just above them so it doesn't sit under the audio pill. */
+@media (max-width: 720px) {
+  .contact-footer { bottom: 76px; font-size: 0.6rem; }
+}
+
 .amp-panel {
   margin-top: 48px;
   max-width: 480px;

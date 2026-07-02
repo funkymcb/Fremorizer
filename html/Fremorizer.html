@@ -33,6 +33,7 @@ const {
   CHORD_ENHARMONIC, expandChordInput, normalizeChordName,
   matchesChordName, chordNameCorrect,
   triadStringSets, findTriads, triadKey,
+  identifyChords,
 } = window.Fremorizer;
 
 /* ═══════════════════════════════════════
@@ -1716,38 +1717,24 @@ function FreeLearn({ onBack, tweaks }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [sel, revealed, totalFrets, nStrings]);
 
-  // Match revealed notes against chord shapes (guitar-only; shapes are 6-string CAGED)
+  // Identify chords from the revealed notes' pitch classes — any voicing, any
+  // position, any instrument. Fires as soon as a full triad (or power chord)
+  // is on the board and lists every valid name for the same notes.
   const matchedChords = useMemo(() => {
-    if (instrument !== 'guitar') return [];
-    const keys = Object.keys(revealed);
-    if (keys.length < 3) return [];
-    const revSet = new Set(keys);
-    const revPositions = keys.map(k => { const [s,f] = k.split('-').map(Number); return {s,f}; });
-    const matches = [];
-    const seen = new Set();
-    for (const chord of CHORD_SHAPES) {
-      const posKeys = chord.positions.map(p => `${p.s}-${p.f}`);
-      if (!posKeys.every(k => revSet.has(k))) continue;
-      const chordSet = new Set(posKeys);
-      // barre fret = lowest fret appearing on 2+ strings (skip fret 0)
-      const fretCounts = {};
-      for (const p of chord.positions) { if (p.f > 0) fretCounts[p.f] = (fretCounts[p.f]||0)+1; }
-      const barreFret = Object.entries(fretCounts)
-        .filter(([,c]) => c >= 2)
-        .map(([f]) => Number(f))
-        .sort((a,b) => a-b)[0] || -1;
-      const extraOk = revPositions.every(rp => {
-        const k = `${rp.s}-${rp.f}`;
-        if (chordSet.has(k)) return true;
-        return barreFret > 0 && rp.f === barreFret;
-      });
-      if (!extraOk) continue;
-      if (!seen.has(chord.name)) {
-        matches.push(chord);
-        seen.add(chord.name);
-      }
+    // Open-string MIDI numbers, high → low (matches TUNINGS layout); used to
+    // find the lowest sounding note so inversions get a slash bass (C/E).
+    const OPEN_MIDI = { guitar: [64,59,55,50,45,40], bass: [43,38,33,28] };
+    const open = OPEN_MIDI[instrument] || OPEN_MIDI.guitar;
+    const pcs = new Set();
+    let bassMidi = Infinity, bassPc = null;
+    for (const k of Object.keys(revealed)) {
+      const [s, f] = k.split('-').map(Number);
+      const pc = CHROMATIC.indexOf(noteAt(s, f, instrument));
+      pcs.add(pc);
+      const midi = open[s] + f;
+      if (midi < bassMidi) { bassMidi = midi; bassPc = pc; }
     }
-    return matches;
+    return identifyChords(pcs, bassPc).slice(0, 6);
   }, [revealed, instrument]);
 
   // Build scale markers
@@ -1790,16 +1777,10 @@ function FreeLearn({ onBack, tweaks }) {
         padding:'6px 0'}}>
         {matchedChords.length > 0
           ? matchedChords.map((c,i) => {
-              const IV_SHORT = {'1':'root','2':'major 2nd','b3':'minor 3rd','3':'major 3rd','4':'perfect 4th','5':'perfect 5th','b7':'minor 7th','7':'major 7th','9':'9th','#9':'sharp 9th'};
-              const seen = new Set();
-              const parts = [];
-              for (const iv of IV_ORDER) {
-                const p = c.positions.find(p => p.iv === iv);
-                if (!p || seen.has(iv)) continue;
-                seen.add(iv);
-                parts.push(`${IV_SHORT[iv]}: ${showNote(noteAt(p.s, p.f), tweaks.noteStyle)}`);
-              }
-              return <div key={i}>{i > 0 && <hr style={{border:'none',borderTop:'1px solid var(--text-dim,#444)',margin:'4px 0'}}/>}<strong>{c.name}</strong> ({parts.join(', ')})</div>;
+              const name = showNote(c.root, tweaks.noteStyle) + c.suf
+                + (c.bass ? '/' + showNote(c.bass, tweaks.noteStyle) : '');
+              const parts = c.tones.map(t => `${t.label}: ${showNote(t.note, tweaks.noteStyle)}`);
+              return <div key={i}>{i > 0 && <hr style={{border:'none',borderTop:'1px solid var(--text-dim,#444)',margin:'4px 0'}}/>}<strong>{name}</strong>{c.no5 ? ' (no 5th)' : ''} ({parts.join(', ')})</div>;
             })
           : 'no chord identified yet'}
       </div>

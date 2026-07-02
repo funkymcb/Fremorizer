@@ -11,6 +11,7 @@ const {
   getChordDifficulty, isBasicBarreChord, chordsForDifficulty, qualitiesForDifficulty,
   buildChordIntervals,
   triadStringSets, findTriads, triadKey, TRIAD_MAX_SPAN,
+  identifyChords,
 } = require('./lib.js');
 
 /* ────────────────────────────────────────────────────────────────
@@ -365,4 +366,95 @@ test('triadKey: order-independent set identity', () => {
   const a = [{s:0,f:0},{s:1,f:1},{s:2,f:0}];
   const b = [{s:2,f:0},{s:0,f:0},{s:1,f:1}];
   assert.equal(triadKey(a), triadKey(b));
+});
+
+/* ────────────────────────────────────────────────────────────────
+   identifyChords — pitch-class-set chord naming (Free Learning).
+   ──────────────────────────────────────────────────────────────── */
+
+// Helper: note names → Set of pitch classes.
+const pcs = (...notes) => new Set(notes.map(n => CHROMATIC.indexOf(n)));
+const names = ms => ms.map(m => m.root + m.suf + (m.no5 ? ' (no 5th)' : ''));
+
+test('identifyChords: bare triads match in any voicing', () => {
+  assert.deepEqual(names(identifyChords(pcs('C','E','G'))), ['C major']);
+  assert.deepEqual(names(identifyChords(pcs('G','C','E'))), ['C major']); // order-free
+  assert.deepEqual(names(identifyChords(pcs('A','C','E'))), ['A minor']);
+  assert.deepEqual(names(identifyChords(pcs('B','D','F'))), ['B dim']);
+});
+
+test('identifyChords: power chord (2 notes)', () => {
+  assert.deepEqual(names(identifyChords(pcs('C','G'))), ['C5']);
+  assert.deepEqual(names(identifyChords(pcs('C','F'))), ['F5']); // inverted fifth
+});
+
+test('identifyChords: alternative names for the same notes', () => {
+  // C6 and Am7 are the same four pitch classes.
+  const m = names(identifyChords(pcs('C','E','G','A')));
+  assert.ok(m.includes('C6'), `expected C6 in ${m}`);
+  assert.ok(m.includes('Am7'), `expected Am7 in ${m}`);
+});
+
+test('identifyChords: symmetric chords list every root', () => {
+  const dim7 = names(identifyChords(pcs('C','D#','F#','A')));
+  for (const n of ['Cdim7','D#dim7','F#dim7','Adim7']) {
+    assert.ok(dim7.includes(n), `expected ${n} in ${dim7}`);
+  }
+  const aug = names(identifyChords(pcs('C','E','G#')));
+  for (const n of ['C aug','E aug','G# aug']) {
+    assert.ok(aug.includes(n), `expected ${n} in ${aug}`);
+  }
+});
+
+test('identifyChords: sus2/sus4 duality', () => {
+  const m = names(identifyChords(pcs('C','D','G')));
+  assert.ok(m.includes('C sus2'), `expected C sus2 in ${m}`);
+  assert.ok(m.includes('G sus4'), `expected G sus4 in ${m}`);
+});
+
+test('identifyChords: sevenths and extensions match without their 5th', () => {
+  assert.deepEqual(names(identifyChords(pcs('C','E','A#'))), ['C7 (no 5th)']);
+  const maj9no5 = names(identifyChords(pcs('C','D','E','B')));
+  assert.ok(maj9no5.includes('Cmaj9 (no 5th)'), `got ${maj9no5}`);
+  // ...but a full match always outranks a no-5th reading.
+  const m = identifyChords(pcs('A','C','E'));
+  assert.equal(m[0].root + m[0].suf, 'A minor');
+});
+
+test('identifyChords: extended chords', () => {
+  assert.ok(names(identifyChords(pcs('C','E','G','A#','D'))).includes('C9'));
+  assert.ok(names(identifyChords(pcs('C','E','G','A#','D#'))).includes('C7#9'));
+  assert.ok(names(identifyChords(pcs('C','D','E','G','A'))).includes('C6/9'));
+  assert.ok(names(identifyChords(pcs('C','E','G','A#','D','A'))).includes('C13'));
+});
+
+test('identifyChords: slash bass on inversions', () => {
+  const E = CHROMATIC.indexOf('E');
+  const m = identifyChords(pcs('C','E','G'), E);
+  assert.equal(m[0].root, 'C');
+  assert.equal(m[0].bass, 'E'); // first inversion → C/E
+  // Root-position: no slash.
+  const m2 = identifyChords(pcs('C','E','G'), CHROMATIC.indexOf('C'));
+  assert.equal(m2[0].bass, null);
+});
+
+test('identifyChords: root-position reading ranks above slash reading', () => {
+  // {C,E,G,A} with A in the bass: Am7 (root position) before C6/A.
+  const m = identifyChords(pcs('C','E','G','A'), CHROMATIC.indexOf('A'));
+  assert.equal(m[0].root + m[0].suf, 'Am7');
+  assert.equal(m[0].bass, null);
+});
+
+test('identifyChords: tones carry labels and note names', () => {
+  const m = identifyChords(pcs('C','E','G'))[0];
+  assert.deepEqual(m.tones, [
+    { note: 'C', label: 'root' },
+    { note: 'E', label: 'major 3rd' },
+    { note: 'G', label: 'perfect 5th' },
+  ]);
+});
+
+test('identifyChords: fewer than 2 pitch classes → nothing', () => {
+  assert.deepEqual(identifyChords(pcs('C')), []);
+  assert.deepEqual(identifyChords(pcs()), []);
 });

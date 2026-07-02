@@ -615,6 +615,131 @@ function triadKey(positions) {
   return positions.map(p => `${p.s}-${p.f}`).sort().join('|');
 }
 
+/* ═══════════════════════════════════════
+   CHORD IDENTIFICATION (Free Learning)
+   Pitch-class-set based: names every chord whose tones exactly match the
+   revealed notes — any voicing, any position, any instrument. A chord with a
+   7th (or higher extension) also matches with its 5th omitted, since that is
+   how such chords are commonly voiced. Because all 12 roots are tried, every
+   alternative name for the same notes falls out automatically (C6 = Am7,
+   dim7's four names, Csus2 = Gsus4, …).
+═══════════════════════════════════════ */
+
+// Degree token → [semitones from root, human-readable label]
+const DEGREE = {
+  '1':  [0,  'root'],
+  'b2': [1,  'flat 2nd'],   'b9': [1,  'flat 9th'],
+  '2':  [2,  '2nd'],        '9':  [2,  '9th'],
+  'b3': [3,  'minor 3rd'],  '#9': [3,  'sharp 9th'],
+  '3':  [4,  'major 3rd'],
+  '4':  [5,  '4th'],        '11': [5,  '11th'],
+  'b5': [6,  'flat 5th'],   '#11':[6,  'sharp 11th'],
+  '5':  [7,  'perfect 5th'],
+  '#5': [8,  'sharp 5th'],  'b13':[8,  'flat 13th'],
+  '6':  [9,  '6th'],        '13': [9,  '13th'],  'bb7':[9, 'dim 7th'],
+  'b7': [10, 'minor 7th'],
+  '7':  [11, 'major 7th'],
+};
+
+// Ordered roughly most → least common; the order breaks ties when several
+// names describe the same set of notes. `suf` is appended to the root name.
+const CHORD_FORMULAS = [
+  // Triads
+  { suf: ' major',    deg: ['1','3','5'] },
+  { suf: ' minor',    deg: ['1','b3','5'] },
+  { suf: ' dim',      deg: ['1','b3','b5'] },
+  { suf: ' aug',      deg: ['1','3','#5'] },
+  { suf: ' sus2',     deg: ['1','2','5'] },
+  { suf: ' sus4',     deg: ['1','4','5'] },
+  { suf: '(b5)',      deg: ['1','3','b5'] },
+  // Power chord
+  { suf: '5',         deg: ['1','5'] },
+  // Sixths & sevenths
+  { suf: '7',         deg: ['1','3','5','b7'] },
+  { suf: 'maj7',      deg: ['1','3','5','7'] },
+  { suf: 'm7',        deg: ['1','b3','5','b7'] },
+  { suf: '6',         deg: ['1','3','5','6'] },
+  { suf: 'm6',        deg: ['1','b3','5','6'] },
+  { suf: 'm(maj7)',   deg: ['1','b3','5','7'] },
+  { suf: 'm7b5',      deg: ['1','b3','b5','b7'] },
+  { suf: 'dim7',      deg: ['1','b3','b5','bb7'] },
+  { suf: 'dim(maj7)', deg: ['1','b3','b5','7'] },
+  { suf: '7sus4',     deg: ['1','4','5','b7'] },
+  { suf: '7sus2',     deg: ['1','2','5','b7'] },
+  { suf: '7b5',       deg: ['1','3','b5','b7'] },
+  { suf: '7#5',       deg: ['1','3','#5','b7'] },
+  { suf: 'maj7b5',    deg: ['1','3','b5','7'] },
+  { suf: 'maj7#5',    deg: ['1','3','#5','7'] },
+  // Added-tone chords
+  { suf: 'add9',      deg: ['1','9','3','5'] },
+  { suf: 'madd9',     deg: ['1','9','b3','5'] },
+  { suf: 'add11',     deg: ['1','3','11','5'] },
+  { suf: 'madd11',    deg: ['1','b3','11','5'] },
+  // Ninths
+  { suf: '9',         deg: ['1','9','3','5','b7'] },
+  { suf: 'maj9',      deg: ['1','9','3','5','7'] },
+  { suf: 'm9',        deg: ['1','9','b3','5','b7'] },
+  { suf: 'm(maj9)',   deg: ['1','9','b3','5','7'] },
+  { suf: '6/9',       deg: ['1','9','3','5','6'] },
+  { suf: 'm6/9',      deg: ['1','9','b3','5','6'] },
+  { suf: '7b9',       deg: ['1','b9','3','5','b7'] },
+  { suf: '7#9',       deg: ['1','#9','3','5','b7'] },
+  { suf: '9sus4',     deg: ['1','9','4','5','b7'] },
+  { suf: '9b5',       deg: ['1','9','3','b5','b7'] },
+  { suf: '9#5',       deg: ['1','9','3','#5','b7'] },
+  { suf: '7#11',      deg: ['1','3','#11','5','b7'] },
+  { suf: 'maj7#11',   deg: ['1','3','#11','5','7'] },
+  { suf: '7b13',      deg: ['1','3','5','b13','b7'] },
+  // Elevenths & thirteenths (13ths omit the 11th, as commonly voiced)
+  { suf: '11',        deg: ['1','9','3','11','5','b7'] },
+  { suf: 'm11',       deg: ['1','9','b3','11','5','b7'] },
+  { suf: 'maj11',     deg: ['1','9','3','11','5','7'] },
+  { suf: '13',        deg: ['1','9','3','5','13','b7'] },
+  { suf: 'm13',       deg: ['1','9','b3','5','13','b7'] },
+  { suf: 'maj13',     deg: ['1','9','3','5','13','7'] },
+];
+
+// identifyChords: name the chord(s) formed by a set of pitch classes (0-11).
+// Returns every matching interpretation, best first. Each match:
+//   { root, suf, no5, bass, tones: [{ note, label }] }
+// `bassPc` (optional) is the pitch class of the lowest sounding note; when it
+// differs from a match's root the match carries it as a slash bass.
+function identifyChords(pcs, bassPc = null) {
+  const set = pcs instanceof Set ? pcs : new Set(pcs);
+  if (set.size < 2) return [];
+  const out = [];
+  for (let root = 0; root < 12; root++) {
+    for (let fi = 0; fi < CHORD_FORMULAS.length; fi++) {
+      const f = CHORD_FORMULAS[fi];
+      const steps = f.deg.map(d => DEGREE[d]);
+      const matchesSteps = st =>
+        set.size === st.length && st.every(([semi]) => set.has((root + semi) % 12));
+      let no5 = false;
+      let matched = matchesSteps(steps);
+      // 7th/extended chords are commonly voiced without their 5th
+      const hasSeventh = steps.some(([s]) => s === 10 || s === 11);
+      if (!matched && hasSeventh && f.deg.includes('5')) {
+        const reduced = steps.filter(([s]) => s !== 7);
+        if (matchesSteps(reduced)) { matched = true; no5 = true; }
+      }
+      if (!matched) continue;
+      const found = no5 ? steps.filter(([s]) => s !== 7) : steps;
+      const slash = bassPc != null && bassPc !== root;
+      out.push({
+        root: CHROMATIC[root],
+        suf: f.suf,
+        no5,
+        bass: slash ? CHROMATIC[bassPc] : null,
+        tones: found.map(([semi, label]) => ({ note: CHROMATIC[(root + semi) % 12], label })),
+        _rank: (no5 ? 1000 : 0) + (slash ? 100 : 0) + fi,
+      });
+    }
+  }
+  out.sort((a, b) => a._rank - b._rank);
+  for (const m of out) delete m._rank;
+  return out;
+}
+
 const api = {
   CHROMATIC, DISPLAY_BOTH, DISPLAY_FLAT, showNote,
   TUNINGS, stringsFor, noteAt, matchNote,
@@ -628,6 +753,7 @@ const api = {
   CHORD_ENHARMONIC, expandChordInput, normalizeChordName,
   matchesChordName, chordNameCorrect,
   TRIAD_MAX_SPAN, triadStringSets, findTriads, triadKey,
+  CHORD_FORMULAS, identifyChords,
 };
 
 if (typeof module !== 'undefined' && module.exports) {

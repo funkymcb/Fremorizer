@@ -669,7 +669,7 @@ function FretboardHeatmap({ cellTimes, totalFrets, instrument, noteStyle, boardT
 /* ═══════════════════════════════════════
    GAME MODE 1: RANDOM NOTE
 ═══════════════════════════════════════ */
-function RandomNoteGame({ onBack, tweaks }) {
+function RandomNoteGame({ onBack, onRestart, tweaks }) {
   const totalFrets = tweaks.frets;
   const instrument = tweaks.instrument || 'guitar';
   const nStrings = stringsFor(instrument).length;
@@ -794,9 +794,14 @@ function RandomNoteGame({ onBack, tweaks }) {
       <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
       <FretboardHeatmap cellTimes={cellTimes} totalFrets={totalFrets} instrument={instrument}
         noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
-      <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
-        ← back to menu
-      </button>
+      <div style={{display:'flex',gap:16,justifyContent:'center',flexWrap:'wrap'}}>
+        <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onRestart}>
+          ↻ new game
+        </button>
+        <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
+          ← back to menu
+        </button>
+      </div>
     </div>
   );
 
@@ -873,7 +878,7 @@ function RandomNoteGame({ onBack, tweaks }) {
 /* ═══════════════════════════════════════
    GAME MODE 2: FIND NOTES IN FRET SET
 ═══════════════════════════════════════ */
-function FindNotesGame({ onBack, tweaks }) {
+function FindNotesGame({ onBack, onRestart, tweaks }) {
   const instrument = tweaks.instrument || 'guitar';
   const nStrings = stringsFor(instrument).length;
   const SET_SIZE = 3 * nStrings;
@@ -975,9 +980,14 @@ function FindNotesGame({ onBack, tweaks }) {
       <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
       <FretboardHeatmap cellTimes={cellTimes} totalFrets={12} instrument={instrument}
         noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
-      <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
-        ← back to menu
-      </button>
+      <div style={{display:'flex',gap:16,justifyContent:'center',flexWrap:'wrap'}}>
+        <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onRestart}>
+          ↻ new game
+        </button>
+        <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
+          ← back to menu
+        </button>
+      </div>
     </div>
   );
 
@@ -1038,7 +1048,7 @@ function FindNotesGame({ onBack, tweaks }) {
 /* ═══════════════════════════════════════
    GAME MODE 3: CHORD IDENTIFICATION
 ═══════════════════════════════════════ */
-function ChordGame({ onBack, tweaks }) {
+function ChordGame({ onBack, onRestart, tweaks }) {
   const diff = tweaks.chordDifficulty || 'easy';
   const isBass = (tweaks.instrument || 'guitar') === 'bass';
   const [chords] = useState(() => shuffleArr(chordsForDifficulty(diff)));
@@ -1195,9 +1205,14 @@ function ChordGame({ onBack, tweaks }) {
         <span><span style={{color:'var(--text-muted)'}}>avg/chord </span>{(time/CHORD_GOAL).toFixed(1)}s</span>
       </div>
       <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
-      <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
-        ← back to menu
-      </button>
+      <div style={{display:'flex',gap:16,justifyContent:'center',flexWrap:'wrap'}}>
+        <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onRestart}>
+          ↻ new game
+        </button>
+        <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
+          ← back to menu
+        </button>
+      </div>
     </div>
   );
 
@@ -1386,7 +1401,7 @@ function buildTriadChordQueue(stringSet, totalFrets, instrument) {
   return shuffleArr(candidates);
 }
 
-function FindTriadsGame({ onBack, tweaks }) {
+function FindTriadsGame({ onBack, onRestart, tweaks }) {
   const totalFrets = tweaks.frets;
   const instrument = tweaks.instrument || 'guitar';
   const nStrings = stringsFor(instrument).length;
@@ -1540,9 +1555,14 @@ function FindTriadsGame({ onBack, tweaks }) {
         <span><span style={{color:'var(--text-muted)'}}>avg/set </span>{(time/TOTAL_CHORD_SETS).toFixed(1)}s</span>
       </div>
       <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
-      <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
-        ← back to menu
-      </button>
+      <div style={{display:'flex',gap:16,justifyContent:'center',flexWrap:'wrap'}}>
+        <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onRestart}>
+          ↻ new game
+        </button>
+        <button className="submit-btn" style={{fontSize:'0.9rem',padding:'12px 32px'}} onClick={onBack}>
+          ← back to menu
+        </button>
+      </div>
     </div>
   );
 
@@ -2459,14 +2479,18 @@ function App() {
   }, [mode]);
 
   function back() { setMode(null); }
+  // Bumping the key remounts the active game component, restarting the
+  // current mode with the same tweaks/settings.
+  const [gameKey, setGameKey] = useState(0);
+  function restart() { setGameKey(k => k + 1); }
 
   return (
     <>
       {!mode && <Menu onSelect={setMode}/>}
-      {mode==='random' && <RandomNoteGame onBack={back} tweaks={tweaks}/>}
-      {mode==='find' && <FindNotesGame onBack={back} tweaks={tweaks}/>}
-      {mode==='chord' && <ChordGame onBack={back} tweaks={tweaks}/>}
-      {mode==='triads' && <FindTriadsGame onBack={back} tweaks={tweaks}/>}
+      {mode==='random' && <RandomNoteGame key={gameKey} onBack={back} onRestart={restart} tweaks={tweaks}/>}
+      {mode==='find' && <FindNotesGame key={gameKey} onBack={back} onRestart={restart} tweaks={tweaks}/>}
+      {mode==='chord' && <ChordGame key={gameKey} onBack={back} onRestart={restart} tweaks={tweaks}/>}
+      {mode==='triads' && <FindTriadsGame key={gameKey} onBack={back} onRestart={restart} tweaks={tweaks}/>}
       {mode==='free' && <FreeLearn onBack={back} tweaks={tweaks}/>}
       {mode==='notes' && <NoteListGame onBack={back} tweaks={tweaks}/>}
       {mode==='stats' && <StatsView onBack={back}/>}

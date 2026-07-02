@@ -12,6 +12,10 @@ RUN go mod download && go mod verify
 
 COPY . .
 
+# Compile the page's inline JSX to plain JS so production serves no Babel
+# and the CSP can omit 'unsafe-eval' (see tools/precompile-jsx).
+RUN go run ./tools/precompile-jsx
+
 # Build a fully static binary:
 #   CGO_ENABLED=0  — no C bindings, avoids libc dependency
 #   -trimpath      — remove local file paths from binary (no info leakage)

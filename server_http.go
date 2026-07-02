@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"embed"
+	"encoding/hex"
 	"log"
 	"net/http"
 	"os"
@@ -147,9 +150,32 @@ func serveHTTPStandalone(domain string) {
 	}
 }
 
+// assetHash is a short content hash used to version asset URLs.
+func assetHash(data []byte) string {
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:4])
+}
+
+// versionedPage rewrites the embedded page's asset references to carry a
+// content hash (lib.js → lib.js?v=<hash>). lib.js and styles.css are served
+// with a 24h shared-cache lifetime, so CDNs (e.g. Cloudflare) hold on to them
+// across deploys; versioned URLs make every deploy an automatic cache miss,
+// so a fresh page can never run against a stale cached lib.js.
+func versionedPage() []byte {
+	page := htmlPage
+	page = bytes.ReplaceAll(page,
+		[]byte(`src="lib.js"`),
+		[]byte(`src="lib.js?v=`+assetHash(libJS)+`"`))
+	page = bytes.ReplaceAll(page,
+		[]byte(`href="styles.css"`),
+		[]byte(`href="styles.css?v=`+assetHash(cssPage)+`"`))
+	return page
+}
+
 // pageHandler returns an http.Handler that serves the embedded HTML page with
 // security headers.
 func pageHandler() http.Handler {
+	page := versionedPage()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/styles.css", func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -187,24 +213,33 @@ func pageHandler() http.Handler {
 		h.Set("Cache-Control", "public, max-age=604800")
 		w.Write(data)
 	})
+	// Dev builds ship raw JSX and need Babel standalone, which requires
+	// 'unsafe-eval'. Production images run tools/precompile-jsx before
+	// `go build`, so the embedded page is plain JS and eval stays blocked.
+	scriptSrc := "script-src 'self' https://unpkg.com 'unsafe-inline'"
+	if bytes.Contains(htmlPage, []byte(`type="text/babel"`)) {
+		scriptSrc += " 'unsafe-eval'"
+	}
+	csp := "default-src 'none'; " +
+		scriptSrc + "; " +
+		"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; " +
+		"font-src https://fonts.gstatic.com; " +
+		"connect-src 'self'; " +
+		"img-src 'self'; " +
+		"frame-ancestors 'none';"
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		// Babel standalone requires 'unsafe-eval' and 'unsafe-inline' at runtime;
-		// all script/font origins are pinned to the CDNs the page actually uses.
-		h.Set("Content-Security-Policy",
-			"default-src 'none'; "+
-				"script-src 'self' https://unpkg.com 'unsafe-inline' 'unsafe-eval'; "+
-				"style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; "+
-				"font-src https://fonts.gstatic.com; "+
-				"connect-src 'self'; "+
-				"img-src 'self'; "+
-				"frame-ancestors 'none';")
+		h.Set("Content-Security-Policy", csp)
+		// The page must always revalidate: it carries the versioned asset
+		// URLs, so a cached copy would defeat the cache busting above.
+		h.Set("Cache-Control", "no-cache")
 		h.Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(htmlPage)
+		w.Write(page)
 	})
 	return mux
 }

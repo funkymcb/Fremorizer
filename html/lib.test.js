@@ -161,7 +161,7 @@ test('chordNameCorrect: rejects unrelated chord names', () => {
 test('getChordDifficulty: classifies chord names by suffix', () => {
   assert.equal(getChordDifficulty('C major'),  'easy');
   assert.equal(getChordDifficulty('A minor'),  'easy');
-  assert.equal(getChordDifficulty('G7'),       'easy');
+  assert.equal(getChordDifficulty('G7'),       'medium');
   assert.equal(getChordDifficulty('Csus2'),    'medium');
   assert.equal(getChordDifficulty('Dsus4'),    'medium');
   assert.equal(getChordDifficulty('Cadd9'),    'medium');
@@ -242,11 +242,17 @@ const INTERVAL_SEMITONES = {
   'b3': 3,
   '3':  4,
   '4':  5,
+  'b5': 6,
   '5':  7,
+  '#5': 8,
+  '6':  9,
+  'bb7':9,
   'b7': 10,
   '7':  11,
+  'b9': 13 % 12,
   '9':  14 % 12,
   '#9': 15 % 12,
+  '13': 21 % 12,
 };
 
 function rootOf(name) {
@@ -457,4 +463,181 @@ test('identifyChords: tones carry labels and note names', () => {
 test('identifyChords: fewer than 2 pitch classes → nothing', () => {
   assert.deepEqual(identifyChords(pcs('C')), []);
   assert.deepEqual(identifyChords(pcs()), []);
+});
+
+/* ────────────────────────────────────────────────────────────────
+   Pro difficulty tier + full chord-shape sanity.
+   ──────────────────────────────────────────────────────────────── */
+
+test('getChordDifficulty: pro tier catches the extended vocabulary', () => {
+  for (const n of ['C6','Cm6','C6/9','Cmaj9','Cm9','Cm(maj7)','Cm7b5',
+                   'Cdim7','Caug','C7sus4','C7b5','C7#5','C7b9','C13']) {
+    assert.equal(getChordDifficulty(n), 'pro', `${n} should be pro`);
+  }
+  // ...without stealing lower tiers.
+  assert.equal(getChordDifficulty('C7'),    'medium'); // dominant 7 moved down
+  assert.equal(getChordDifficulty('C9'),    'hard');
+  assert.equal(getChordDifficulty('Cadd9'), 'medium');
+});
+
+test('qualitiesForDifficulty: pro extends hard; easy has no dominant 7', () => {
+  const easy = qualitiesForDifficulty('easy');
+  const hard = qualitiesForDifficulty('hard');
+  const pro  = qualitiesForDifficulty('pro');
+  assert.ok(!easy.includes('7'));
+  assert.ok(qualitiesForDifficulty('medium').includes('7'));
+  for (const q of hard) assert.ok(pro.includes(q), `pro missing ${q}`);
+  for (const q of ['6','m6','6/9','maj9','m9','m(maj7)','m7b5','dim7','aug','7sus4','7b5','7#5','7b9','13']) {
+    assert.ok(pro.includes(q), `pro missing ${q}`);
+  }
+});
+
+test('chordsForDifficulty: pro pool contains every pro quality and no basic barres', () => {
+  const pro = chordsForDifficulty('pro');
+  for (const suf of ['6','m6','6/9','maj9','m9','m(maj7)','m7b5','dim7','aug','7sus4','7b5','7#5','7b9','13']) {
+    assert.ok(pro.some(c => c.name.endsWith(suf)), `no shape ends with ${suf}`);
+  }
+  for (const c of pro) assert.ok(!isBasicBarreChord(c), `basic barre leaked into pro: ${c.name}`);
+});
+
+// Full-catalog sanity: every shape's interval tags must sound the note the
+// tag claims, cover the quality's formula, be playable, and no two chords
+// may share the exact same fretboard positions under different names.
+test('CHORD_SHAPES: every shape is correct, complete, and playable', () => {
+  const PC = { C:0,'C#':1,Db:1,D:2,'D#':3,Eb:3,E:4,F:5,'F#':6,Gb:6,G:7,'G#':8,Ab:8,A:9,'A#':10,Bb:10,B:11 };
+  const IV_SEMI = { '1':0,'2':2,'b3':3,'3':4,'4':5,'b5':6,'5':7,'#5':8,'6':9,'bb7':9,'b7':10,'7':11,'b9':1,'9':2,'#9':3,'11':5,'13':9 };
+  const FORMULAS = {
+    'major':['1','3','5'], 'minor':['1','b3','5'], '7':['1','3','5','b7'],
+    'sus2':['1','2','5'], 'sus4':['1','4','5'], 'add9':['1','3','5','9'],
+    'maj7':['1','3','5','7'], 'm7':['1','b3','5','b7'],
+    '9':['1','3','5','b7','9'], '7#9':['1','3','5','b7','#9'],
+    '6':['1','3','5','6'], 'm6':['1','b3','5','6'], '6/9':['1','3','5','6','9'],
+    'maj9':['1','3','5','7','9'], 'm9':['1','b3','5','b7','9'],
+    'm(maj7)':['1','b3','5','7'], 'm7b5':['1','b3','b5','b7'],
+    'dim7':['1','b3','b5','bb7'], 'aug':['1','3','#5'],
+    '7sus4':['1','4','5','b7'], '7b5':['1','3','b5','b7'], '7#5':['1','3','#5','b7'],
+    '7b9':['1','3','5','b7','b9'], '13':['1','3','b7','13'],
+  };
+  // Tones a real-world voicing may omit (the 5th on extended chords).
+  const OPTIONAL = { '9':['5'], '7#9':['5'], '7b9':['5'], 'maj9':['5'], 'm9':['5'], '13':['5'], '6/9':['5'] };
+
+  const positionKeys = new Map();
+  for (const c of CHORD_SHAPES) {
+    const m = c.name.match(/^([A-G][#b]?)\s*(.*)$/);
+    assert.ok(m, `${c.name}: unparseable name`);
+    const rootPc = PC[m[1]];
+    const quality = m[2] || 'major';
+    const formula = FORMULAS[quality];
+    assert.ok(rootPc != null && formula, `${c.name}: unknown root/quality`);
+
+    const byString = new Set();
+    for (const p of c.positions) {
+      const semi = IV_SEMI[p.iv];
+      assert.ok(semi != null, `${c.name}: unknown iv '${p.iv}'`);
+      assert.equal(noteAt(p.s, p.f, 'guitar'), CHROMATIC[(rootPc + semi) % 12],
+        `${c.name}: s${p.s} f${p.f} tagged '${p.iv}' sounds wrong`);
+      assert.ok(p.f >= 0 && p.f <= 12, `${c.name}: fret ${p.f} out of range`);
+      assert.ok(!byString.has(p.s), `${c.name}: two notes on string ${p.s}`);
+      byString.add(p.s);
+    }
+
+    const have = new Set(c.positions.map(p => p.iv));
+    const opt = new Set(OPTIONAL[quality] || []);
+    for (const iv of formula) {
+      assert.ok(have.has(iv) || opt.has(iv), `${c.name}: missing tone '${iv}'`);
+    }
+    for (const iv of have) assert.ok(formula.includes(iv), `${c.name}: foreign tone '${iv}'`);
+
+    const fretted = c.positions.map(p => p.f).filter(f => f > 0);
+    if (fretted.length) {
+      const span = Math.max(...fretted) - Math.min(...fretted);
+      assert.ok(span <= 4, `${c.name}: fretted span ${span} is unplayable`);
+    }
+
+    const key = c.positions.map(p => `${p.s}-${p.f}`).sort().join('|');
+    const prev = positionKeys.get(key);
+    assert.ok(!prev || prev === c.name, `ambiguous shape: ${prev} and ${c.name} share positions`);
+    positionKeys.set(key, c.name);
+  }
+});
+
+/* ────────────────────────────────────────────────────────────────
+   buildShapeChart — movable shape families for the chord chart.
+   ──────────────────────────────────────────────────────────────── */
+
+const { buildShapeChart } = require('./lib.js');
+
+test('buildShapeChart: easy collapses to the CAGED families', () => {
+  const chart = buildShapeChart('easy');
+  assert.deepEqual(chart.map(g => g.quality), ['major', 'minor']);
+  assert.equal(chart[0].shapes.length, 5); // E, A, D, C, G shapes
+  assert.equal(chart[1].shapes.length, 3);
+});
+
+test('buildShapeChart: shapes are normalized and root-agnostic', () => {
+  for (const diff of ['easy', 'medium', 'hard', 'pro']) {
+    for (const group of buildShapeChart(diff)) {
+      for (const shape of group.shapes) {
+        assert.equal(Math.min(...shape.map(p => p.f)), 0,
+          `${diff}/${group.quality}: shape not normalized to fret 0`);
+        assert.ok(shape.some(p => p.iv === '1'),
+          `${diff}/${group.quality}: shape has no root`);
+      }
+    }
+  }
+});
+
+test('buildShapeChart: every pool quality appears in its chart', () => {
+  const chart = buildShapeChart('pro');
+  const qualities = new Set(chart.map(g => g.quality));
+  for (const q of qualitiesForDifficulty('pro')) {
+    assert.ok(qualities.has(q), `chart missing quality ${q}`);
+  }
+});
+
+/* ────────────────────────────────────────────────────────────────
+   Symmetric chord roots, display spelling, dim triads, new scales.
+   ──────────────────────────────────────────────────────────────── */
+
+const { displayChordName, DORIAN_SCALE, MIXOLYDIAN_SCALE, HARMONIC_MINOR_SCALE } = require('./lib.js');
+
+test('chordNameCorrect: symmetric chords accept any chord tone as root', () => {
+  // Cdim7 = Eb/F#/A dim7 (incl. enharmonic spellings of those roots)
+  for (const alt of ['ebdim7', 'd#dim7', 'f#dim7', 'gbdim7', 'adim7']) {
+    assert.ok(chordNameCorrect(alt, 'cdim7'), `${alt} should match cdim7`);
+  }
+  // Caug = E aug = G# aug
+  assert.ok(chordNameCorrect('eaug',  'caug'));
+  assert.ok(chordNameCorrect('g#aug', 'caug'));
+  assert.ok(chordNameCorrect('abaug', 'caug'));
+  // ...but not a root outside the chord.
+  assert.ok(!chordNameCorrect('ddim7', 'cdim7'));
+  assert.ok(!chordNameCorrect('faug',  'caug'));
+  // Non-symmetric qualities are unaffected.
+  assert.ok(!chordNameCorrect('em7', 'cm7'));
+});
+
+test('displayChordName: respells the root per note style', () => {
+  assert.equal(displayChordName('C#7', 'flat'),  'Db7');
+  assert.equal(displayChordName('Ab7', 'sharp'), 'G#7');
+  assert.equal(displayChordName('Eb major', 'sharp'), 'D# major');
+  // 'both' keeps the canonical spelling — no "C#/Db7".
+  assert.equal(displayChordName('C#7', 'both'), 'C#7');
+  assert.equal(displayChordName('Ab7', 'both'), 'Ab7');
+  assert.equal(displayChordName('C major', 'flat'), 'C major');
+});
+
+test('findTriads: dim quality uses b3 and b5', () => {
+  const triads = findTriads('C', 'dim', [0, 1, 2], 12, 'guitar');
+  assert.ok(triads.length > 0);
+  for (const t of triads) {
+    const notes = t.map(p => noteAt(p.s, p.f, 'guitar')).sort();
+    assert.deepEqual(notes, ['C', 'D#', 'F#']);
+  }
+});
+
+test('scales: dorian, mixolydian, harmonic minor', () => {
+  assert.deepEqual(scaleNotes('D', DORIAN_SCALE), ['D','E','F','G','A','B','C']);
+  assert.deepEqual(scaleNotes('G', MIXOLYDIAN_SCALE), ['G','A','B','C','D','E','F']);
+  assert.deepEqual(scaleNotes('A', HARMONIC_MINOR_SCALE), ['A','B','C','D','E','F','G#']);
 });

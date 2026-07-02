@@ -22,8 +22,9 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 // under Node. The names below are re-bound from the global API object.
 const {
   CHROMATIC, DISPLAY_BOTH, DISPLAY_FLAT, showNote,
-  TUNINGS, stringsFor, noteAt, matchNote,
-  MAJOR_SCALE, MINOR_SCALE, PENTATONIC_MAJOR, PENTATONIC_MINOR, scaleNotes,
+  TUNINGS, stringsFor, noteAt, matchNote, OPEN_MIDI,
+  MAJOR_SCALE, MINOR_SCALE, DORIAN_SCALE, MIXOLYDIAN_SCALE, HARMONIC_MINOR_SCALE,
+  PENTATONIC_MAJOR, PENTATONIC_MINOR, scaleNotes,
   CHORD_SHAPES, CHORD_GOAL, shuffleArr,
   CHORD_QUALITIES_EASY, CHORD_QUALITIES_MEDIUM, CHORD_QUALITIES_HARD,
   getChordDifficulty, DIFFICULTY_RANK, isBasicBarreChord,
@@ -31,9 +32,9 @@ const {
   FRET_SETS_MODE2, notesInSet, positionsOfNote,
   IV_ORDER, IV_LABEL, buildChordIntervals,
   CHORD_ENHARMONIC, expandChordInput, normalizeChordName,
-  matchesChordName, chordNameCorrect,
+  matchesChordName, chordNameCorrect, displayChordName,
   triadStringSets, findTriads, triadKey,
-  identifyChords,
+  identifyChords, buildShapeChart,
 } = window.Fremorizer;
 
 /* ═══════════════════════════════════════
@@ -41,8 +42,6 @@ const {
 ═══════════════════════════════════════ */
 const AUDIO = (() => {
   let ctx = null;
-  // Open-string MIDI numbers, high → low (matches TUNINGS layout)
-  const OPEN_MIDI = { guitar: [64,59,55,50,45,40], bass: [43,38,33,28] };
   const SEMI_NAMED = {C:0,'C#':1,D:2,'D#':3,E:4,F:5,'F#':6,G:7,'G#':8,A:9,'A#':10,B:11};
 
   // Sample bank: one medium-velocity layer ("gt2") covers ~Eb2 to C#6.
@@ -720,6 +719,7 @@ function RandomNoteGame({ onBack, onRestart, tweaks }) {
   const [input, setInput] = useState('');
   const [feedback, setFeedback] = useState(null);
   const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
   const [finished, setFinished] = useState(false);
   const [time, startTimer, stopTimer] = useTimer();
   const inputRef = useRef(null);
@@ -752,7 +752,9 @@ function RandomNoteGame({ onBack, onRestart, tweaks }) {
       setCellTimes(prev => ({ ...prev, [key]: elapsed }));
       const newDone = new Set(done); newDone.add(key);
       setDone(newDone);
-      setStreak(s => s+1);
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      if (newStreak > bestStreak) setBestStreak(newStreak);
       setFeedback('correct');
       setFlashing(true);
       if (newDone.size >= total) {
@@ -789,7 +791,7 @@ function RandomNoteGame({ onBack, onRestart, tweaks }) {
       <div style={{display:'flex',gap:40,justifyContent:'center',flexWrap:'wrap',fontFamily:'DM Mono',fontSize:'0.8rem',color:'var(--text-dim)'}}>
         <span><span style={{color:'var(--text-muted)'}}>time </span>{time}s</span>
         <span><span style={{color:'var(--text-muted)'}}>notes </span>{total}</span>
-        <span><span style={{color:'var(--text-muted)'}}>best streak </span>{streak}</span>
+        <span><span style={{color:'var(--text-muted)'}}>best streak </span>{bestStreak}</span>
         <span><span style={{color:'var(--text-muted)'}}>avg/note </span>{(time/total).toFixed(1)}s</span>
       </div>
       <div style={{width:80,height:1,background:'linear-gradient(90deg,transparent,var(--gold),transparent)',margin:'0 auto'}}/>
@@ -901,7 +903,7 @@ function FindNotesGame({ onBack, onRestart, tweaks }) {
   // Reset the per-target timer whenever a new target note appears.
   useEffect(() => { taskStartRef.current = Date.now(); }, [noteQi, setIdx]);
   useEffect(() => {
-    if (finished) saveResult({ mode: 'find', timeSeconds: time, totalItems: TOTAL_MODE2, avgPerItem: +(time/TOTAL_MODE2).toFixed(2) });
+    if (finished) saveResult({ mode: 'find', timeSeconds: time, totalItems: TOTAL_MODE2, avgPerItem: +(time/TOTAL_MODE2).toFixed(2), instrument });
   }, [finished]);
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onBack(); }
@@ -1047,6 +1049,87 @@ function FindNotesGame({ onBack, onRestart, tweaks }) {
 }
 
 /* ═══════════════════════════════════════
+   CHORD SHAPE CHART (movable shapes, interval labels only)
+═══════════════════════════════════════ */
+// Horizontal mini-fretboard in the same orientation as the game board:
+// strings as rows (high E on top, low E at the bottom), fret offsets as
+// columns increasing to the right. Root-agnostic — dots carry interval
+// labels, the root dot is filled. Muted strings get an × at the left.
+function ShapeDiagram({ positions }) {
+  const maxF = Math.max(...positions.map(p => p.f), 2);
+  const cols = maxF + 1;
+  const colW = 24, rowH = 15, padL = 16, padR = 6, padY = 9;
+  const w = padL + cols*colW + padR, h = padY*2 + rowH*5;
+  const yFor = s => padY + s * rowH;
+  const xFor = f => padL + (f + 0.5) * colW;
+  const used = new Set(positions.map(p => p.s));
+  return (
+    <svg width={w} height={h} style={{flex:'none'}}>
+      {[0,1,2,3,4,5].map(s => (
+        <line key={s} x1={padL} y1={yFor(s)} x2={padL+cols*colW} y2={yFor(s)}
+          stroke="var(--text-muted)" strokeWidth="1" opacity="0.45"/>
+      ))}
+      {Array.from({length: cols+1}, (_, c) => (
+        <line key={c} x1={padL+c*colW} y1={yFor(0)} x2={padL+c*colW} y2={yFor(5)}
+          stroke="var(--text-muted)" strokeWidth="1" opacity="0.45"/>
+      ))}
+      {[0,1,2,3,4,5].filter(s => !used.has(s)).map(s => (
+        <text key={s} x={padL-8} y={yFor(s)+3} textAnchor="middle"
+          fontSize="9" fill="var(--text-muted)">×</text>
+      ))}
+      {positions.map((p, i) => (
+        <g key={i}>
+          <circle cx={xFor(p.f)} cy={yFor(p.s)} r={6.5}
+            fill={p.iv === '1' ? 'var(--gold)' : 'var(--bg)'}
+            stroke="var(--gold)" strokeWidth="1.2"/>
+          <text x={xFor(p.f)} y={yFor(p.s) + 2.5} textAnchor="middle"
+            fontSize={p.iv.length > 2 ? 5.5 : 7} fontWeight="700"
+            fontFamily="DM Mono, monospace"
+            fill={p.iv === '1' ? 'var(--bg)' : 'var(--text)'}>{p.iv}</text>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
+function ChordChartModal({ diff, onClose }) {
+  const chart = useMemo(() => buildShapeChart(diff), [diff]);
+  return (
+    <div onClick={onClose} style={{
+      position:'fixed', inset:0, background:'rgba(0,0,0,0.65)',
+      display:'flex', alignItems:'center', justifyContent:'center', zIndex:1100,
+    }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        background:'var(--bg)', border:'1px solid var(--gold-dim)', borderRadius:6,
+        padding:'20px 24px', maxWidth:640, width:'92vw', maxHeight:'85vh', overflowY:'auto',
+        fontFamily:'DM Mono, monospace', boxShadow:'0 10px 40px rgba(0,0,0,0.55)',
+      }}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6}}>
+          <div style={{fontSize:'0.72rem', color:'var(--gold)', letterSpacing:'0.18em', textTransform:'uppercase'}}>
+            Chord chart · {diff}
+          </div>
+          <button className="submit-btn" onClick={onClose} style={{padding:'6px 14px'}}>Close</button>
+        </div>
+        <div style={{fontSize:'0.68rem', color:'var(--text-muted)', lineHeight:1.5, marginBottom:14}}>
+          Movable shapes with interval labels — the filled dot is the root (1).
+          Match the pattern on the board, then read the chord from wherever the root sits.
+        </div>
+        {chart.map(group => (
+          <div key={group.quality} style={{marginBottom:12}}>
+            <div style={{fontSize:'0.78rem', color:'var(--text-dim)', fontWeight:700, marginBottom:2}}>
+              {group.quality}
+            </div>
+            <div style={{display:'flex', flexWrap:'wrap', gap:'4px 14px', alignItems:'flex-start'}}>
+              {group.shapes.map((positions, i) => <ShapeDiagram key={i} positions={positions}/>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════
    GAME MODE 3: CHORD IDENTIFICATION
 ═══════════════════════════════════════ */
 function ChordGame({ onBack, onRestart, tweaks }) {
@@ -1064,6 +1147,7 @@ function ChordGame({ onBack, onRestart, tweaks }) {
   const [solvedSymbols, setSolvedSymbols] = useState(new Set());
   const [hintOpen, setHintOpen] = useState(false);
   const [hintLevel, setHintLevel] = useState(1);      // # of hints revealed (1..N)
+  const [chartOpen, setChartOpen] = useState(false);
   const [time, startTimer, stopTimer] = useTimer();
   const inputRef = useRef(null);
 
@@ -1080,17 +1164,18 @@ function ChordGame({ onBack, onRestart, tweaks }) {
     return () => clearTimeout(id);
   }, [ci, phase]);
   useEffect(() => {
-    if (finished) saveResult({ mode: 'chord', timeSeconds: time, totalItems: CHORD_GOAL, avgPerItem: +(time/CHORD_GOAL).toFixed(2) });
+    if (finished) saveResult({ mode: 'chord', timeSeconds: time, totalItems: CHORD_GOAL, avgPerItem: +(time/CHORD_GOAL).toFixed(2), difficulty: diff });
   }, [finished]);
   useEffect(() => {
     function onKey(e) {
       if (e.key !== 'Escape') return;
-      if (hintOpen) setHintOpen(false);
+      if (chartOpen) setChartOpen(false);
+      else if (hintOpen) setHintOpen(false);
       else onBack();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [hintOpen]);
+  }, [hintOpen, chartOpen]);
 
   if (isBass) return (
     <div className="game-wrap" style={{maxWidth:480,textAlign:'center',gap:24}}>
@@ -1182,7 +1267,7 @@ function ChordGame({ onBack, onRestart, tweaks }) {
   // Skip current chord: reveal answer, mark as wrong, advance without scoring.
   function handleSolve() {
     setHintOpen(false);
-    setInput(chord.name);
+    setInput(displayChordName(chord.name, tweaks.noteStyle));
     setFeedback('wrong');
     setTimeout(() => {
       setFeedback(null); setInput('');
@@ -1243,6 +1328,20 @@ function ChordGame({ onBack, onRestart, tweaks }) {
     'add9':   'Add 9 — major chord with an added 9th, no 7th.',
     '9':      'Dominant 9th — extended dominant chord.',
     '7#9':    'Dominant 7♯9 — the "Hendrix" chord.',
+    '6':      'Major 6th — sweet, jazzy resolution chord.',
+    'm6':     'Minor 6th — dark Dorian flavor.',
+    '6/9':    'Six-nine — lush jazz ending chord.',
+    'maj9':   'Major 9th — soft and floating.',
+    'm9':     'Minor 9th — smooth soul/R&B color.',
+    'm(maj7)':'Minor major 7th — tense, film-noir sound.',
+    'm7b5':   'Half-diminished — the ii chord of minor keys.',
+    'dim7':   'Diminished 7th — symmetric, maximum tension.',
+    'aug':    'Augmented — raised 5th, unresolved lift.',
+    '7sus4':  'Dominant 7 sus4 — funky, no 3rd.',
+    '7b5':    'Dominant 7 flat 5 — tritone-sub color.',
+    '7#5':    'Augmented dominant — altered tension.',
+    '7b9':    'Dominant 7 flat 9 — dark jazz dominant.',
+    '13':     'Dominant 13th — the full jazz dominant.',
   };
   const chordParts = (() => {
     // Names use both 'C major' (with space) and 'Bm7' / 'Bbsus2' (no space).
@@ -1262,7 +1361,9 @@ function ChordGame({ onBack, onRestart, tweaks }) {
       </div>
 
       <div className="fretboard-wrap">
-        <Fretboard markers={markers} totalFrets={tweaks.frets} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
+        {/* Always 12 frets: the shape pool uses positions up to fret 12, so a
+            7/9-fret board (FRETS tweak) would clip chords off the edge. */}
+        <Fretboard markers={markers} totalFrets={12} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme}/>
       </div>
 
       <div className="input-area">
@@ -1293,7 +1394,7 @@ function ChordGame({ onBack, onRestart, tweaks }) {
           </div>}
         </>) : (<>
           <div style={{fontFamily:'DM Mono',fontSize:'0.75rem',color:'var(--text-muted)',marginBottom:6}}>
-            Chord: <span style={{color:'var(--gold)',fontWeight:700}}>{chord.name}</span>
+            Chord: <span style={{color:'var(--gold)',fontWeight:700}}>{displayChordName(chord.name, tweaks.noteStyle)}</span>
             &nbsp;·&nbsp;{solvedSymbols.size}/{intervals.length} intervals found
           </div>
           <div className="prompt-text">
@@ -1357,14 +1458,19 @@ function ChordGame({ onBack, onRestart, tweaks }) {
             </ol>
             <div style={{display:'flex', gap:10, marginTop:20,
                          justifyContent:'space-between', flexWrap:'wrap'}}>
-              {hintLevel < hintTexts.length ? (
-                <button className="submit-btn" onClick={() => setHintLevel(l => l + 1)}>
-                  Reveal another
+              <div style={{display:'flex', gap:10, flexWrap:'wrap'}}>
+                {hintLevel < hintTexts.length ? (
+                  <button className="submit-btn" onClick={() => setHintLevel(l => l + 1)}>
+                    Reveal another
+                  </button>
+                ) : (
+                  <span style={{fontSize:'0.7rem', color:'var(--text-muted)',
+                                alignSelf:'center'}}>All hints revealed</span>
+                )}
+                <button className="submit-btn" onClick={() => setChartOpen(true)}>
+                  Chord chart
                 </button>
-              ) : (
-                <span style={{fontSize:'0.7rem', color:'var(--text-muted)',
-                              alignSelf:'center'}}>All hints revealed</span>
-              )}
+              </div>
               <div style={{display:'flex', gap:10}}>
                 <button className="submit-btn" onClick={() => setHintOpen(false)}>Close</button>
                 <button className="submit-btn" onClick={handleSolve}
@@ -1376,6 +1482,8 @@ function ChordGame({ onBack, onRestart, tweaks }) {
           </div>
         </div>
       )}
+
+      {chartOpen && <ChordChartModal diff={diff} onClose={() => setChartOpen(false)}/>}
     </div>
   );
 }
@@ -1393,7 +1501,7 @@ const CHORD_SETS_PER_STRINGSET = 5;
 function buildTriadChordQueue(stringSet, totalFrets, instrument) {
   const candidates = [];
   for (const root of CHROMATIC) {
-    for (const quality of ['major', 'minor']) {
+    for (const quality of ['major', 'minor', 'dim']) {
       if (findTriads(root, quality, stringSet, totalFrets, instrument).length > 0) {
         candidates.push({ root, quality });
       }
@@ -1429,7 +1537,7 @@ function FindTriadsGame({ onBack, onRestart, tweaks }) {
 
   useEffect(() => { startTimer(); }, []);
   useEffect(() => {
-    if (finished) saveResult({ mode:'triads', timeSeconds:time, totalItems:TOTAL_CHORD_SETS, avgPerItem:+(time/TOTAL_CHORD_SETS).toFixed(2) });
+    if (finished) saveResult({ mode:'triads', timeSeconds:time, totalItems:TOTAL_CHORD_SETS, avgPerItem:+(time/TOTAL_CHORD_SETS).toFixed(2), instrument });
   }, [finished]);
   useEffect(() => {
     function onKey(e) {
@@ -1595,7 +1703,7 @@ function FindTriadsGame({ onBack, onRestart, tweaks }) {
 
   const tuning = stringsFor(instrument);
   const stringLabels = currentSet.map(s => tuning[s]).join('-');
-  const qualityWord = currentChord ? (currentChord.quality === 'minor' ? 'minor' : 'major') : '';
+  const qualityWord = currentChord ? currentChord.quality : '';
   const chordDisplay = currentChord
     ? `${showNote(currentChord.root, tweaks.noteStyle)} ${qualityWord}`
     : '—';
@@ -1682,13 +1790,15 @@ function FreeLearn({ onBack, tweaks }) {
 
   const scaleSet = scaleType ? new Set(scaleNotes(scaleRoot, {
     major: MAJOR_SCALE, minor: MINOR_SCALE,
+    dorian: DORIAN_SCALE, mixo: MIXOLYDIAN_SCALE, 'harm.min': HARMONIC_MINOR_SCALE,
     'pent.maj': PENTATONIC_MAJOR, 'pent.min': PENTATONIC_MINOR
   }[scaleType])) : null;
-  // When a full major/minor scale is shown, also compute its pentatonic subset
-  // so we can visually distinguish the "safe" pentatonic tones from the rest.
+  // When a full scale is shown, also compute its pentatonic subset so we can
+  // visually distinguish the "safe" pentatonic tones from the rest. Minor-
+  // flavored scales overlay the minor pentatonic, the rest the major one.
   // Pure pentatonic modes treat every scale tone as pentatonic.
   const pentatonicSet = scaleType ? new Set(scaleNotes(scaleRoot,
-    scaleType === 'minor' || scaleType === 'pent.min' ? PENTATONIC_MINOR : PENTATONIC_MAJOR
+    ['minor','pent.min','dorian','harm.min'].includes(scaleType) ? PENTATONIC_MINOR : PENTATONIC_MAJOR
   )) : null;
 
   function handleCellClick(s, f) {
@@ -1721,9 +1831,7 @@ function FreeLearn({ onBack, tweaks }) {
   // position, any instrument. Fires as soon as a full triad (or power chord)
   // is on the board and lists every valid name for the same notes.
   const matchedChords = useMemo(() => {
-    // Open-string MIDI numbers, high → low (matches TUNINGS layout); used to
-    // find the lowest sounding note so inversions get a slash bass (C/E).
-    const OPEN_MIDI = { guitar: [64,59,55,50,45,40], bass: [43,38,33,28] };
+    // Lowest sounding note gives inversions their slash bass (C/E).
     const open = OPEN_MIDI[instrument] || OPEN_MIDI.guitar;
     const pcs = new Set();
     let bassMidi = Infinity, bassPc = null;
@@ -1777,8 +1885,10 @@ function FreeLearn({ onBack, tweaks }) {
         padding:'6px 0'}}>
         {matchedChords.length > 0
           ? matchedChords.map((c,i) => {
+              // Slash bass gets a single enharmonic name — "A major/C#/Db"
+              // would read like a double slash chord.
               const name = showNote(c.root, tweaks.noteStyle) + c.suf
-                + (c.bass ? '/' + showNote(c.bass, tweaks.noteStyle) : '');
+                + (c.bass ? '/' + showNote(c.bass, tweaks.noteStyle === 'flat' ? 'flat' : 'sharp') : '');
               const parts = c.tones.map(t => `${t.label}: ${showNote(t.note, tweaks.noteStyle)}`);
               return <div key={i}>{i > 0 && <hr style={{border:'none',borderTop:'1px solid var(--text-dim,#444)',margin:'4px 0'}}/>}<strong>{name}</strong>{c.no5 ? ' (no 5th)' : ''} ({parts.join(', ')})</div>;
             })
@@ -1789,7 +1899,7 @@ function FreeLearn({ onBack, tweaks }) {
         <select className="root-select" value={scaleRoot} onChange={e=>setScaleRoot(e.target.value)}>
           {CHROMATIC.map(n=><option key={n} value={n}>{showNote(n, tweaks.noteStyle)}</option>)}
         </select>
-        {['major','minor','pent.maj','pent.min'].map(t => (
+        {['major','minor','dorian','mixo','harm.min','pent.maj','pent.min'].map(t => (
           <button key={t} className={`scale-btn ${scaleType===t?'active':''}`}
             onClick={()=>setScaleType(p=>p===t?null:t)}>{t}</button>
         ))}
@@ -2228,13 +2338,7 @@ function loadTweaks() {
   try {
     const saved = JSON.parse(localStorage.getItem(TWEAKS_KEY));
     if (!saved || typeof saved !== 'object') return TWEAK_DEFAULTS;
-    const merged = { ...TWEAK_DEFAULTS, ...saved };
-    // Migrate legacy 'pro' difficulty → 'hard' + hidden intervals.
-    if (merged.chordDifficulty === 'pro') {
-      merged.chordDifficulty = 'hard';
-      if (saved.chordIntervals == null) merged.chordIntervals = 'hide';
-    }
-    return merged;
+    return { ...TWEAK_DEFAULTS, ...saved };
   } catch { return TWEAK_DEFAULTS; }
 }
 
@@ -2381,7 +2485,7 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
               verticalAlign:'middle',userSelect:'none'}}>?</span>
         </div>
         <div className="tweak-options">
-          {['easy','medium','hard'].map(d => (
+          {['easy','medium','hard','pro'].map(d => (
             <button key={d} className={`tweak-opt ${tweaks.chordDifficulty===d?'active':''}`}
               onClick={() => setTweaks(t=>({...t,chordDifficulty:d}))}>{d}</button>
           ))}
@@ -2390,9 +2494,10 @@ function TweaksPanel({ tweaks, setTweaks, onClose }) {
       {showChordInfo && (
         <div style={{padding:'8px 12px',fontSize:'0.7rem',fontFamily:'DM Mono',color:'var(--text-muted)',
           lineHeight:1.5,borderTop:'1px solid var(--border-subtle,rgba(128,128,128,0.15))'}}>
-          <div><b>Easy</b> — major, minor, dominant 7th</div>
-          <div><b>Medium</b> — + sus2, sus4, add9</div>
+          <div><b>Easy</b> — major, minor</div>
+          <div><b>Medium</b> — + dominant 7th, sus2, sus4, add9</div>
           <div><b>Hard</b> — + maj7, m7, 9th, 7#9</div>
+          <div><b>Pro</b> — + 6, m6, 6/9, maj9, m9, m(maj7), m7b5, dim7, aug, 7sus4, 7b5, 7#5, 7b9, 13</div>
         </div>
       )}
       <div className="tweak-row">

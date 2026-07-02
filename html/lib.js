@@ -27,6 +27,10 @@ const TUNINGS = {
 };
 const stringsFor = inst => TUNINGS[inst] || TUNINGS.guitar;
 
+// Open-string MIDI numbers, high → low (matches TUNINGS layout). Used for
+// audio playback and for finding the lowest sounding note of a voicing.
+const OPEN_MIDI = { guitar: [64,59,55,50,45,40], bass: [43,38,33,28] };
+
 function noteAt(si, fret, inst='guitar') {
   const strings = stringsFor(inst);
   const idx = CHROMATIC.indexOf(strings[si]);
@@ -41,6 +45,9 @@ function matchNote(input, expected) {
 
 const MAJOR_SCALE = [0,2,4,5,7,9,11];
 const MINOR_SCALE = [0,2,3,5,7,8,10];
+const DORIAN_SCALE = [0,2,3,5,7,9,10];
+const MIXOLYDIAN_SCALE = [0,2,4,5,7,9,10];
+const HARMONIC_MINOR_SCALE = [0,2,3,5,7,8,11];
 const PENTATONIC_MAJOR = [0,2,4,7,9];
 const PENTATONIC_MINOR = [0,3,5,7,10];
 
@@ -183,16 +190,9 @@ const CHORD_SHAPES = [
   { name:'Bb7', positions:[{s:3,f:8,iv:'1'},{s:2,f:10,iv:'5'},{s:1,f:9,iv:'b7'},{s:0,f:10,iv:'3'}] },
   { name:'B7', positions:[{s:3,f:9,iv:'1'},{s:2,f:11,iv:'5'},{s:1,f:10,iv:'b7'},{s:0,f:11,iv:'3'}] },
   // ── SUS2 ────────────────────────────────────────────────────────
-  // E-shape
-  { name:'Csus2', positions:[{s:5,f:8,iv:'1'},{s:4,f:10,iv:'5'},{s:3,f:12,iv:'2'},{s:2,f:12,iv:'5'},{s:1,f:8,iv:'5'},{s:0,f:8,iv:'1'}] },
+  // E-shape — only the open voicing; barred up the neck this shape spans
+  // 5 frets under a barre, which is not realistically playable.
   { name:'Esus2', positions:[{s:5,f:0,iv:'1'},{s:4,f:2,iv:'5'},{s:3,f:4,iv:'2'},{s:2,f:4,iv:'5'},{s:1,f:0,iv:'5'},{s:0,f:0,iv:'1'}] },
-  { name:'Fsus2', positions:[{s:5,f:1,iv:'1'},{s:4,f:3,iv:'5'},{s:3,f:5,iv:'2'},{s:2,f:5,iv:'5'},{s:1,f:1,iv:'5'},{s:0,f:1,iv:'1'}] },
-  { name:'F#sus2', positions:[{s:5,f:2,iv:'1'},{s:4,f:4,iv:'5'},{s:3,f:6,iv:'2'},{s:2,f:6,iv:'5'},{s:1,f:2,iv:'5'},{s:0,f:2,iv:'1'}] },
-  { name:'Gsus2', positions:[{s:5,f:3,iv:'1'},{s:4,f:5,iv:'5'},{s:3,f:7,iv:'2'},{s:2,f:7,iv:'5'},{s:1,f:3,iv:'5'},{s:0,f:3,iv:'1'}] },
-  { name:'Absus2', positions:[{s:5,f:4,iv:'1'},{s:4,f:6,iv:'5'},{s:3,f:8,iv:'2'},{s:2,f:8,iv:'5'},{s:1,f:4,iv:'5'},{s:0,f:4,iv:'1'}] },
-  { name:'Asus2', positions:[{s:5,f:5,iv:'1'},{s:4,f:7,iv:'5'},{s:3,f:9,iv:'2'},{s:2,f:9,iv:'5'},{s:1,f:5,iv:'5'},{s:0,f:5,iv:'1'}] },
-  { name:'Bbsus2', positions:[{s:5,f:6,iv:'1'},{s:4,f:8,iv:'5'},{s:3,f:10,iv:'2'},{s:2,f:10,iv:'5'},{s:1,f:6,iv:'5'},{s:0,f:6,iv:'1'}] },
-  { name:'Bsus2', positions:[{s:5,f:7,iv:'1'},{s:4,f:9,iv:'5'},{s:3,f:11,iv:'2'},{s:2,f:11,iv:'5'},{s:1,f:7,iv:'5'},{s:0,f:7,iv:'1'}] },
   // A-shape
   { name:'Csus2', positions:[{s:4,f:3,iv:'1'},{s:3,f:5,iv:'5'},{s:2,f:5,iv:'1'},{s:1,f:3,iv:'2'},{s:0,f:3,iv:'5'}] },
   { name:'C#sus2', positions:[{s:4,f:4,iv:'1'},{s:3,f:6,iv:'5'},{s:2,f:6,iv:'1'},{s:1,f:4,iv:'2'},{s:0,f:4,iv:'5'}] },
@@ -264,17 +264,8 @@ const CHORD_SHAPES = [
   { name:'Aadd9', positions:[{s:5,f:5,iv:'1'},{s:4,f:7,iv:'5'},{s:3,f:7,iv:'1'},{s:2,f:6,iv:'3'},{s:1,f:5,iv:'5'},{s:0,f:7,iv:'9'}] },
   { name:'Bbadd9', positions:[{s:5,f:6,iv:'1'},{s:4,f:8,iv:'5'},{s:3,f:8,iv:'1'},{s:2,f:7,iv:'3'},{s:1,f:6,iv:'5'},{s:0,f:8,iv:'9'}] },
   { name:'Badd9', positions:[{s:5,f:7,iv:'1'},{s:4,f:9,iv:'5'},{s:3,f:9,iv:'1'},{s:2,f:8,iv:'3'},{s:1,f:7,iv:'5'},{s:0,f:9,iv:'9'}] },
-  // D-shape
-  { name:'Dadd9', positions:[{s:3,f:0,iv:'1'},{s:2,f:2,iv:'5'},{s:1,f:3,iv:'1'},{s:0,f:0,iv:'9'}] },
-  { name:'Ebadd9', positions:[{s:3,f:1,iv:'1'},{s:2,f:3,iv:'5'},{s:1,f:4,iv:'1'},{s:0,f:1,iv:'9'}] },
-  { name:'Eadd9', positions:[{s:3,f:2,iv:'1'},{s:2,f:4,iv:'5'},{s:1,f:5,iv:'1'},{s:0,f:2,iv:'9'}] },
-  { name:'Fadd9', positions:[{s:3,f:3,iv:'1'},{s:2,f:5,iv:'5'},{s:1,f:6,iv:'1'},{s:0,f:3,iv:'9'}] },
-  { name:'F#add9', positions:[{s:3,f:4,iv:'1'},{s:2,f:6,iv:'5'},{s:1,f:7,iv:'1'},{s:0,f:4,iv:'9'}] },
-  { name:'Gadd9', positions:[{s:3,f:5,iv:'1'},{s:2,f:7,iv:'5'},{s:1,f:8,iv:'1'},{s:0,f:5,iv:'9'}] },
-  { name:'Abadd9', positions:[{s:3,f:6,iv:'1'},{s:2,f:8,iv:'5'},{s:1,f:9,iv:'1'},{s:0,f:6,iv:'9'}] },
-  { name:'Aadd9', positions:[{s:3,f:7,iv:'1'},{s:2,f:9,iv:'5'},{s:1,f:10,iv:'1'},{s:0,f:7,iv:'9'}] },
-  { name:'Bbadd9', positions:[{s:3,f:8,iv:'1'},{s:2,f:10,iv:'5'},{s:1,f:11,iv:'1'},{s:0,f:8,iv:'9'}] },
-  { name:'Badd9', positions:[{s:3,f:9,iv:'1'},{s:2,f:11,iv:'5'},{s:1,f:12,iv:'1'},{s:0,f:9,iv:'9'}] },
+  // (No D-shape add9: without a 3rd those voicings are identical to the
+  // D-shape sus2 entries above — same frets, two names, one accepted answer.)
   // C-shape
   { name:'Cadd9', positions:[{s:4,f:3,iv:'1'},{s:3,f:2,iv:'3'},{s:2,f:0,iv:'5'},{s:1,f:3,iv:'9'},{s:0,f:0,iv:'3'}] },
   { name:'C#add9', positions:[{s:4,f:4,iv:'1'},{s:3,f:3,iv:'3'},{s:2,f:1,iv:'5'},{s:1,f:4,iv:'9'},{s:0,f:1,iv:'3'}] },
@@ -411,6 +402,58 @@ const CHORD_SHAPES = [
   { name:'B7#9', positions:[{s:4,f:2,iv:'1'},{s:3,f:1,iv:'3'},{s:2,f:2,iv:'b7'},{s:1,f:3,iv:'#9'}] },
 ];
 
+/* ── PRO-TIER SHAPES ────────────────────────────────────────────────
+   Generated from movable templates so every root gets the same trusted
+   voicing. `off` entries are [string, fretOffset, interval] relative to the
+   root fret on `rootS`; a chord is emitted for every root whose frets all
+   land within 0..12. All voicings are standard grips (drop-2 / CAGED-derived)
+   with a fretted span ≤ 3. Extended chords omit the 5th where that is the
+   common guitar voicing (9ths/13ths). */
+const PRO_ROOT_NAME = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+const PRO_TEMPLATES = [
+  // Sixths
+  { suf:'6',       rootS:4, off:[[4,0,'1'],[3,2,'5'],[2,2,'1'],[1,2,'3'],[0,2,'6']] },        // x-R-R+2-R+2-R+2-R+2 (C6 = x35555)
+  { suf:'6',       rootS:3, off:[[3,0,'1'],[2,2,'5'],[1,0,'6'],[0,2,'3']] },                  // xx-R-R+2-R-R+2 (D6 = xx0202)
+  { suf:'m6',      rootS:4, off:[[4,0,'1'],[3,2,'5'],[2,2,'1'],[1,1,'b3'],[0,2,'6']] },       // Am6 = x02212
+  { suf:'m6',      rootS:3, off:[[3,0,'1'],[2,2,'5'],[1,0,'6'],[0,1,'b3']] },                 // Dm6 = xx0201
+  { suf:'6/9',     rootS:4, off:[[4,0,'1'],[3,-1,'3'],[2,-1,'6'],[1,0,'9'],[0,0,'5']] },      // C6/9 = x32233
+  // Extended
+  { suf:'maj9',    rootS:4, off:[[4,0,'1'],[3,-1,'3'],[2,1,'7'],[1,0,'9']] },                 // Cmaj9 = x324x x
+  { suf:'m9',      rootS:4, off:[[4,0,'1'],[3,-2,'b3'],[2,0,'b7'],[1,0,'9'],[0,0,'5']] },     // Cm9 = x31333
+  { suf:'13',      rootS:5, off:[[5,0,'1'],[3,0,'b7'],[2,1,'3'],[1,2,'13']] },                // F13 = 1x122x
+  // Minor-major
+  { suf:'m(maj7)', rootS:4, off:[[4,0,'1'],[3,2,'5'],[2,1,'7'],[1,1,'b3']] },                 // Am(maj7) = x0211x
+  // Diminished / half-diminished / augmented
+  { suf:'m7b5',    rootS:4, off:[[4,0,'1'],[3,1,'b5'],[2,0,'b7'],[1,1,'b3']] },               // Bm7b5 = x2323x
+  { suf:'m7b5',    rootS:5, off:[[5,0,'1'],[3,0,'b7'],[2,0,'b3'],[1,-1,'b5']] },              // F#m7b5 = 2x221x
+  { suf:'dim7',    rootS:4, off:[[4,0,'1'],[3,1,'b5'],[2,-1,'bb7'],[1,1,'b3']] },             // Bdim7 = x2313x
+  { suf:'dim7',    rootS:3, off:[[3,0,'1'],[2,1,'b5'],[1,0,'bb7'],[0,1,'b3']] },              // Edim7 = xx2323
+  { suf:'aug',     rootS:4, off:[[4,0,'1'],[3,-1,'3'],[2,-2,'#5'],[1,-2,'1']] },              // Caug = x3211x
+  { suf:'aug',     rootS:5, off:[[5,0,'1'],[3,2,'1'],[2,1,'3'],[1,1,'#5']] },                 // Faug = 1x322x
+  // Dominant colors
+  { suf:'7sus4',   rootS:5, off:[[5,0,'1'],[4,2,'5'],[3,0,'b7'],[2,2,'4'],[1,0,'5'],[0,0,'1']] }, // F7sus4 = 131311
+  { suf:'7sus4',   rootS:4, off:[[4,0,'1'],[3,2,'5'],[2,0,'b7'],[1,3,'4']] },                 // A7sus4 = x0203x
+  { suf:'7b5',     rootS:5, off:[[5,0,'1'],[3,0,'b7'],[2,1,'3'],[1,-1,'b5']] },               // C7b5 = 8x897x
+  { suf:'7#5',     rootS:5, off:[[5,0,'1'],[3,0,'b7'],[2,1,'3'],[1,1,'#5']] },                // C7#5 = 8x899x
+  { suf:'7b9',     rootS:4, off:[[4,0,'1'],[3,-1,'3'],[2,0,'b7'],[1,-1,'b9']] },              // C7b9 = x3232x
+];
+{
+  const OPEN_PC = [4, 11, 7, 2, 9, 4]; // E B G D A E, top → bottom
+  for (const t of PRO_TEMPLATES) {
+    for (let pc = 0; pc < 12; pc++) {
+      const base = (pc - OPEN_PC[t.rootS] + 12) % 12;
+      for (const R of [base, base + 12]) {
+        if (t.off.some(([, d]) => R + d < 0 || R + d > 12)) continue;
+        CHORD_SHAPES.push({
+          name: PRO_ROOT_NAME[pc] + t.suf,
+          positions: t.off.map(([s, d, iv]) => ({ s, f: R + d, iv })),
+        });
+        break;
+      }
+    }
+  }
+}
+
 const CHORD_GOAL = 20;
 
 function shuffleArr(arr) {
@@ -425,22 +468,29 @@ function shuffleArr(arr) {
 /* ═══════════════════════════════════════
    CHORD DIFFICULTY + QUALITY HELPERS
 ═══════════════════════════════════════ */
-const CHORD_QUALITIES_EASY   = ['major', 'minor', '7'];
+const CHORD_QUALITIES_EASY   = ['major', 'minor'];
 const CHORD_QUALITIES_MEDIUM = ['major', 'minor', '7', 'sus2', 'sus4', 'add9'];
 const CHORD_QUALITIES_HARD   = ['major', 'minor', '7', 'sus2', 'sus4', 'add9', 'maj7', 'm7', '9', '7#9'];
+const CHORD_QUALITIES_PRO    = [...CHORD_QUALITIES_HARD,
+  '6', 'm6', '6/9', 'maj9', 'm9', 'm(maj7)', 'm7b5', 'dim7', 'aug',
+  '7sus4', '7b5', '7#5', '7b9', '13'];
 
 function getChordDifficulty(name) {
   const n = name.toLowerCase();
-  if (/7#9$/.test(n))   return 'hard';
-  if (/maj7$/.test(n))  return 'hard';
-  if (/m7$/.test(n))    return 'hard';
-  if (/(?<!add)9$/.test(n))  return 'hard';
+  // Pro — extended/altered vocabulary
+  if (/(m7b5|dim7|aug|m\(maj7\)|7sus4|7b5|7#5|7b9|13|maj9|m9|6\/9)$/.test(n)) return 'pro';
+  if (/6$/.test(n))          return 'pro';   // 6 and m6
+  if (/7#9$/.test(n))        return 'hard';
+  if (/maj7$/.test(n))       return 'hard';
+  if (/m7$/.test(n))         return 'hard';
+  if (/(?<!add)9$/.test(n))  return 'hard';  // plain 9 (maj9/m9 are pro)
+  if (/7$/.test(n))          return 'medium';// dominant 7th (maj7/m7 returned above)
   if (/sus[24]$/.test(n))    return 'medium';
   if (/add9$/.test(n))       return 'medium';
   return 'easy';
 }
 
-const DIFFICULTY_RANK = { easy: 0, medium: 1, hard: 2 };
+const DIFFICULTY_RANK = { easy: 0, medium: 1, hard: 2, pro: 3 };
 
 function isBasicBarreChord(chord) {
   const n = chord.name.toLowerCase();
@@ -456,15 +506,37 @@ function chordsForDifficulty(diff) {
   const rank = DIFFICULTY_RANK[diff] ?? 0;
   return CHORD_SHAPES.filter(c => {
     if (DIFFICULTY_RANK[getChordDifficulty(c.name)] > rank) return false;
-    if (diff === 'hard' && isBasicBarreChord(c)) return false;
+    if ((diff === 'hard' || diff === 'pro') && isBasicBarreChord(c)) return false;
     return true;
   });
 }
 
 function qualitiesForDifficulty(diff) {
+  if (diff === 'pro') return CHORD_QUALITIES_PRO;
   if (diff === 'hard') return CHORD_QUALITIES_HARD;
   if (diff === 'medium') return CHORD_QUALITIES_MEDIUM;
   return CHORD_QUALITIES_EASY;
+}
+
+// buildShapeChart: the movable shape families behind a difficulty's chord
+// pool, root-agnostic. Concrete chords collapse into one entry per distinct
+// interval pattern (an E-shape F major and an E-shape B major are the same
+// family); positions are normalized so the shape's lowest fret is 0. Used by
+// the chord-chart overlay, which shows interval layouts rather than chords.
+function buildShapeChart(diff) {
+  const groups = new Map(); // quality -> Map(signature -> normalized positions)
+  for (const c of chordsForDifficulty(diff)) {
+    const m = c.name.match(/^[A-G][#b]?\s*(.*)$/);
+    const q = (m && m[1]) || 'major';
+    const minF = Math.min(...c.positions.map(p => p.f));
+    const norm = c.positions.map(p => ({ s: p.s, f: p.f - minF, iv: p.iv }));
+    const sig = norm.map(p => `${p.s}:${p.f}:${p.iv}`).sort().join('|');
+    if (!groups.has(q)) groups.set(q, new Map());
+    if (!groups.get(q).has(sig)) groups.get(q).set(sig, norm);
+  }
+  return qualitiesForDifficulty(diff)
+    .filter(q => groups.has(q))
+    .map(q => ({ quality: q, shapes: [...groups.get(q).values()] }));
 }
 
 /* ═══════════════════════════════════════
@@ -488,18 +560,24 @@ function positionsOfNote(note, fretSet, nStrings, instrument) {
 /* ═══════════════════════════════════════
    INTERVAL + CHORD-NAME MATCHING
 ═══════════════════════════════════════ */
-const IV_ORDER = ['1','2','b3','3','4','5','b7','7','9','#9'];
+const IV_ORDER = ['1','2','b3','3','4','b5','5','#5','6','bb7','b7','7','b9','9','#9','13'];
 const IV_LABEL = {
   '1':  'root note (1)',
   '2':  'major second (2)',
   'b3': 'minor third (b3)',
   '3':  'major third (3)',
   '4':  'perfect fourth (4)',
+  'b5': 'flat five (b5)',
   '5':  'perfect fifth (5)',
+  '#5': 'sharp five (#5)',
+  '6':  'major sixth (6)',
+  'bb7':'diminished seventh (bb7)',
   'b7': 'minor seventh (b7)',
   '7':  'major seventh (7)',
+  'b9': 'flat nine (b9)',
   '9':  'ninth (9)',
   '#9': 'sharp nine (#9)',
+  '13': 'thirteenth (13)',
 };
 
 function buildChordIntervals(chord) {
@@ -544,13 +622,43 @@ function matchesChordName(input, cname) {
   return false;
 }
 
-function chordNameCorrect(norm, name) {
+function nameOrEnharmonicMatches(norm, name) {
   if (matchesChordName(norm, name)) return true;
   const rootMatch = name.match(/^([a-g][#b]?)/);
   const nameRoot  = rootMatch?.[1];
   const ehRoot    = nameRoot && CHORD_ENHARMONIC[nameRoot];
   const ehName    = ehRoot ? ehRoot + name.slice(nameRoot.length) : null;
   return !!(ehName && matchesChordName(norm, ehName));
+}
+
+// Symmetric chords divide the octave evenly, so every chord tone is an
+// equally valid root: Cdim7 = Ebdim7 = F#dim7 = Adim7, Caug = Eaug = G#aug.
+const SYMMETRIC_ROOT_STEPS = { dim7: [3, 6, 9], aug: [4, 8] };
+const LOWER_FLAT_TO_SHARP = { db:'C#', eb:'D#', gb:'F#', ab:'G#', bb:'A#' };
+
+function chordNameCorrect(norm, name) {
+  if (nameOrEnharmonicMatches(norm, name)) return true;
+  const sym = name.match(/^([a-g][#b]?)(dim7|aug)$/);
+  if (!sym) return false;
+  const idx = CHROMATIC.indexOf(
+    LOWER_FLAT_TO_SHARP[sym[1]] || sym[1][0].toUpperCase() + sym[1].slice(1));
+  if (idx < 0) return false;
+  return SYMMETRIC_ROOT_STEPS[sym[2]].some(step =>
+    nameOrEnharmonicMatches(norm, (CHROMATIC[(idx + step) % 12] + sym[2]).toLowerCase()));
+}
+
+// displayChordName: respell a chord name's root for the user's note-style
+// preference ('sharp' → C#7, 'flat' → Db7). The 'both' style keeps the
+// name's canonical spelling — "C#/Db7" would read like a slash chord.
+const SHARP_TO_FLAT_ROOT = { 'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb' };
+const FLAT_TO_SHARP_ROOT = { 'Db':'C#','Eb':'D#','Gb':'F#','Ab':'G#','Bb':'A#' };
+function displayChordName(name, style = 'both') {
+  const m = name.match(/^([A-G][#b]?)(.*)$/);
+  if (!m) return name;
+  let root = m[1];
+  if (style === 'sharp')     root = FLAT_TO_SHARP_ROOT[root] || root;
+  else if (style === 'flat') root = SHARP_TO_FLAT_ROOT[root] || root;
+  return root + m[2];
 }
 
 /* ═══════════════════════════════════════
@@ -574,7 +682,7 @@ function triadStringSets(nStrings) {
 // the given 3-string set, with each chord tone on exactly one string and a
 // fret span ≤ TRIAD_MAX_SPAN. Used by Mode 4 to score a player's clicks.
 function findTriads(root, quality, stringSet, totalFrets, instrument) {
-  const intervals = quality === 'minor' ? [0, 3, 7] : [0, 4, 7];
+  const intervals = { major: [0, 4, 7], minor: [0, 3, 7], dim: [0, 3, 6] }[quality] || [0, 4, 7];
   const rootIdx = CHROMATIC.indexOf(root);
   if (rootIdx < 0 || !stringSet || stringSet.length !== 3) return [];
   const chordNotes = intervals.map(i => CHROMATIC[(rootIdx + i) % 12]);
@@ -742,16 +850,17 @@ function identifyChords(pcs, bassPc = null) {
 
 const api = {
   CHROMATIC, DISPLAY_BOTH, DISPLAY_FLAT, showNote,
-  TUNINGS, stringsFor, noteAt, matchNote,
-  MAJOR_SCALE, MINOR_SCALE, PENTATONIC_MAJOR, PENTATONIC_MINOR, scaleNotes,
+  TUNINGS, stringsFor, noteAt, matchNote, OPEN_MIDI,
+  MAJOR_SCALE, MINOR_SCALE, DORIAN_SCALE, MIXOLYDIAN_SCALE, HARMONIC_MINOR_SCALE,
+  PENTATONIC_MAJOR, PENTATONIC_MINOR, scaleNotes,
   CHORD_SHAPES, CHORD_GOAL, shuffleArr,
-  CHORD_QUALITIES_EASY, CHORD_QUALITIES_MEDIUM, CHORD_QUALITIES_HARD,
+  CHORD_QUALITIES_EASY, CHORD_QUALITIES_MEDIUM, CHORD_QUALITIES_HARD, CHORD_QUALITIES_PRO,
   getChordDifficulty, DIFFICULTY_RANK, isBasicBarreChord,
-  chordsForDifficulty, qualitiesForDifficulty,
+  chordsForDifficulty, qualitiesForDifficulty, buildShapeChart,
   FRET_SETS_MODE2, notesInSet, positionsOfNote,
   IV_ORDER, IV_LABEL, buildChordIntervals,
   CHORD_ENHARMONIC, expandChordInput, normalizeChordName,
-  matchesChordName, chordNameCorrect,
+  matchesChordName, chordNameCorrect, displayChordName,
   TRIAD_MAX_SPAN, triadStringSets, findTriads, triadKey,
   CHORD_FORMULAS, identifyChords,
 };

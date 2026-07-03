@@ -161,7 +161,7 @@ const AUDIO = (() => {
 /* ═══════════════════════════════════════
    FRETBOARD SVG
 ═══════════════════════════════════════ */
-function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both', boardType='rosewood', theme='vintage', freeLearn=false, instrument='guitar' }) {
+function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, interactive=false, selectedCell, totalFrets=12, noteStyle='both', boardType='rosewood', theme='vintage', freeLearn=false, instrument='guitar', zoomWindow=null }) {
   const strings = stringsFor(instrument);
   const nStrings = strings.length;
   const lastS = nStrings - 1;
@@ -170,6 +170,17 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
   const H = MT + lastS * SH + MB;
   const cx = f => f === 0 ? 14 : ML + (f - 0.5) * FW;
   const cy = s => MT + s * SH;
+
+  // Zoom (mobile): crop the viewBox to a fret window so the region of
+  // interest fills the screen instead of squeezing all 12 frets into a
+  // phone width. A left gutter keeps the string labels visible.
+  const ZG = 36;
+  const zoom = zoomWindow ? (() => {
+    const x = ML + (zoomWindow[0] - 1) * FW - ZG;
+    const w = (zoomWindow[1] - zoomWindow[0] + 1) * FW + ZG + 10;
+    return { x, w };
+  })() : null;
+  const stringLabelX = zoom ? zoom.x + ZG - 18 : ML - 18;
   // Board colors — theme + board type aware
   const isMaple = boardType === 'maple';
   const isVintage = theme === 'vintage';
@@ -232,7 +243,8 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
   const markerAt = (s,f) => markers.find(m => m.s===s && m.f===f);
 
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+    <svg width={zoom ? zoom.w : W} height={H}
+      viewBox={zoom ? `${zoom.x} 0 ${zoom.w} ${H}` : `0 0 ${W} ${H}`}>
       <defs>
         <linearGradient id="bgrd" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={boardTop}/>
@@ -343,7 +355,7 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
         const openRevealed = showNotes[openKey];
         if (isFreeLearning && !openRevealed) {
           return (
-            <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
+            <text key={s} x={stringLabelX} y={cy(s)+5} textAnchor="middle"
               fill="#c04040" fontSize="15" fontWeight="700"
               fontFamily="'DM Mono',monospace"
               style={{pointerEvents:'none'}}>✕</text>
@@ -351,14 +363,14 @@ function Fretboard({ markers=[], onCellClick, fretSet, stringSet, showNotes={}, 
         }
         if (isFreeLearning && openRevealed) {
           return (
-            <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
+            <text key={s} x={stringLabelX} y={cy(s)+5} textAnchor="middle"
               fill={noteTextColor} fontSize="11" fontWeight="600"
               fontFamily="'DM Mono',monospace"
               style={{pointerEvents:'none'}}>{showNote(noteAt(s,0,instrument), noteStyle)}</text>
           );
         }
         return (
-          <text key={s} x={ML-18} y={cy(s)+5} textAnchor="middle"
+          <text key={s} x={stringLabelX} y={cy(s)+5} textAnchor="middle"
             fill={stringLabelColor} fontSize="13" fontWeight="600"
             fontFamily="'DM Mono',monospace">{n}</text>
         );
@@ -830,7 +842,12 @@ function RandomNoteGame({ onBack, onRestart, tweaks }) {
       </div>
 
       <div className="fretboard-wrap">
-        <Fretboard markers={markers} totalFrets={totalFrets} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme} instrument={instrument}/>
+        {/* Mobile: zoom to the queried fret ±3 so the question is readable
+            on a phone. Desktop keeps the full board. */}
+        <Fretboard markers={markers} totalFrets={totalFrets} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme} instrument={instrument}
+          zoomWindow={(isMobile && window.innerWidth < 960 && current && totalFrets > 7)
+            ? (() => { const lo = Math.max(1, Math.min(current.f - 3, totalFrets - 6)); return [lo, lo + 6]; })()
+            : null}/>
       </div>
 
       <div className="input-area">
@@ -1002,7 +1019,11 @@ function FindNotesGame({ onBack, onRestart, tweaks }) {
       </div>
 
       <div className="fretboard-wrap">
-        <Fretboard markers={markers} onCellClick={clickCell} fretSet={fretSet} interactive={true} totalFrets={12} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme} instrument={instrument}/>
+        {/* Mobile: zoom to the active 3-fret band (±2 frets of context). */}
+        <Fretboard markers={markers} onCellClick={clickCell} fretSet={fretSet} interactive={true} totalFrets={12} noteStyle={tweaks.noteStyle} boardType={tweaks.board} theme={tweaks.theme} instrument={instrument}
+          zoomWindow={(isMobile && window.innerWidth < 960 && fretSet)
+            ? (() => { const lo = Math.max(1, Math.min(fretSet[0] - 2, 12 - 6)); return [lo, lo + 6]; })()
+            : null}/>
       </div>
 
       <div className="input-area">

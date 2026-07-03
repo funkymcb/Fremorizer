@@ -1369,9 +1369,13 @@ function ChordGame({ onBack, onRestart, tweaks }) {
       <div className="input-area">
         {phase === 'naming' ? (<>
           <div className="prompt-text">Which chord is this?</div>
-          {isMobile ? (
+          {isMobile ? (<>
             <ChordKeyboard onChord={name => !feedback && handleNaming(name)} disabled={!!feedback} noteStyle={tweaks.noteStyle} difficulty={diff}/>
-          ) : (
+            <button className="submit-btn" onClick={() => setHintOpen(true)}
+              style={{alignSelf:'center', marginTop:6, padding:'8px 22px', fontSize:'0.8rem'}}>
+              ? hints
+            </button>
+          </>) : (
             <div className="note-input-row">
               <input ref={inputRef}
                 className={`note-input chord-input-wide ${feedback||''}`}
